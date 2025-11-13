@@ -25,8 +25,8 @@ export const generateVideoWithRunway = async (
 
   const client = new RunwayML({
     apiKey: process.env.RUNWAY_API_KEY,
-    // version is optional; the SDK defaults to the latest if unset
-    version: (process.env.RUNWAY_API_KEY as any) || '2024-11-06',
+    // FIX: The 'version' property does not exist on ClientOptions and was causing a TypeScript error.
+    // The SDK defaults to the latest version if it is not specified.
   });
 
   try {

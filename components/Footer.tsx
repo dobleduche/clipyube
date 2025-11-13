@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { TwitterIcon, GithubIcon } from './Icons';
 import { useAppContext } from '../context/AppContext';
@@ -35,6 +36,7 @@ const Footer: React.FC = () => {
                                 <li><a href="#/docs-faq" onClick={(e) => handleNavClick(e, '#/docs-faq')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">Docs & FAQ</a></li>
                                 <li><a href="#/about" onClick={(e) => handleNavClick(e, '#/about')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">About</a></li>
                                 <li><a href="#/contact" onClick={(e) => handleNavClick(e, '#/contact')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">Contact</a></li>
+                                <li><a href="#/smoke-test" onClick={(e) => handleNavClick(e, '#/smoke-test')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">System Health</a></li>
                             </ul>
                         </div>
                     </div>

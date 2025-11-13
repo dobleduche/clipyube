@@ -1,5 +1,6 @@
 
 
+
 import React from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -17,10 +18,12 @@ import SettingsPage from './pages/SettingsPage';
 import AutomationDashboardPage from './pages/AutomationDashboardPage';
 import WorkspacePage from './pages/WorkspacePage';
 import ClipYubePage from './pages/ClipYubePage';
+import SmokeTestPage from './pages/SmokeTestPage';
 import { useAppContext } from './context/AppContext';
 import { useSettings } from './context/SettingsContext';
 // FIX: Import Transition type from framer-motion to resolve typing error.
 import { motion, AnimatePresence, Transition } from 'framer-motion';
+import CookieConsentBanner from './components/CookieConsentBanner';
 
 const App: React.FC = () => {
   const { route, blogPosts } = useAppContext();
@@ -57,6 +60,8 @@ const App: React.FC = () => {
         return <AutomationDashboardPage />;
       case '#/workspace':
         return <WorkspacePage />;
+      case '#/smoke-test':
+        return <SmokeTestPage />;
       case '#/editor':
         return (
           <>
@@ -108,6 +113,7 @@ const App: React.FC = () => {
         </AnimatePresence>
       </main>
       <Footer />
+      <CookieConsentBanner />
     </div>
   );
 };

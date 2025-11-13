@@ -311,6 +311,8 @@ export const ImageEditor: React.FC = () => {
     const [brushSettings, setBrushSettings] = useState({ color: '#ff0000', size: 10, opacity: 1 });
     const [isDrawing, setIsDrawing] = useState(false);
     const lastDrawingPointRef = useRef<{ x: number, y: number } | null>(null);
+    const [brushHistory, setBrushHistory] = useState<string[]>([]);
+    const [brushHistoryIndex, setBrushHistoryIndex] = useState<number>(-1);
 
 
     // Mock for paid feature
@@ -877,6 +879,15 @@ export const ImageEditor: React.FC = () => {
     }, [videoPrompt, videoStyle, currentHistoryState, videoProvider, videoAspectRatio, videoResolution, caption]);
 
     // Brush Tool Logic
+    const handleClearBrush = useCallback(() => {
+        const canvas = drawingCanvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setBrushHistory([]);
+        setBrushHistoryIndex(-1);
+    }, []);
+
     useEffect(() => {
         const canvas = drawingCanvasRef.current;
         const image = mainImageRef.current;
@@ -885,6 +896,7 @@ export const ImageEditor: React.FC = () => {
                 if(image.naturalWidth > 0) {
                     canvas.width = image.naturalWidth;
                     canvas.height = image.naturalHeight;
+                    handleClearBrush(); // Clear brush history when image changes
                 }
             };
 
@@ -895,7 +907,7 @@ export const ImageEditor: React.FC = () => {
                 return () => image.removeEventListener('load', setCanvasSize);
             }
         }
-    }, [currentHistoryState?.id]);
+    }, [currentHistoryState?.id, handleClearBrush]);
 
     const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>): { x: number, y: number } | null => {
         const canvas = drawingCanvasRef.current;
@@ -941,17 +953,58 @@ export const ImageEditor: React.FC = () => {
 
     const handleDrawingEnd = () => {
         const canvas = drawingCanvasRef.current;
-        if (!canvas) return;
+        if (!canvas || !isDrawing) return;
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.closePath();
         setIsDrawing(false);
+
+        // Save state for undo/redo
+        const newUrl = canvas.toDataURL();
+        if (brushHistory[brushHistoryIndex] === newUrl) return;
+
+        const newHistory = brushHistory.slice(0, brushHistoryIndex + 1);
+
+        if (newHistory.length === 0) {
+            // Add the initial empty state before the first stroke
+            const emptyCanvas = document.createElement('canvas');
+            emptyCanvas.width = canvas.width;
+            emptyCanvas.height = canvas.height;
+            newHistory.push(emptyCanvas.toDataURL());
+        }
+
+        newHistory.push(newUrl);
+        setBrushHistory(newHistory);
+        setBrushHistoryIndex(newHistory.length - 1);
+    };
+    
+    const restoreBrushState = useCallback((index: number) => {
+        const canvas = drawingCanvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (!canvas || !ctx || !brushHistory[index]) return;
+
+        const imageUrl = brushHistory[index];
+        const image = new Image();
+        image.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(image, 0, 0);
+        };
+        image.src = imageUrl;
+    }, [brushHistory]);
+
+    const handleBrushUndo = () => {
+        if (brushHistoryIndex > 0) {
+            const newIndex = brushHistoryIndex - 1;
+            setBrushHistoryIndex(newIndex);
+            restoreBrushState(newIndex);
+        }
     };
 
-    const handleClearBrush = () => {
-        const canvas = drawingCanvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const handleBrushRedo = () => {
+        if (brushHistoryIndex < brushHistory.length - 1) {
+            const newIndex = brushHistoryIndex + 1;
+            setBrushHistoryIndex(newIndex);
+            restoreBrushState(newIndex);
+        }
     };
 
     const handleApplyBrush = async () => {
@@ -1142,7 +1195,11 @@ export const ImageEditor: React.FC = () => {
                 </div>
 
                 <ToolOptionsPanel title="Brush Tool" icon={<BrushIcon />} isOpen={toolIsActive('brush')} onToggle={() => toggleTool('brush')}>
-                    <div className="space-y-4">
+                    <div className="flex items-center justify-end gap-2 mb-2 pb-2 border-b border-white/10">
+                        <button onClick={handleBrushUndo} disabled={brushHistoryIndex <= 0} className="p-2 rounded-md hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed" title="Undo Brush Stroke"><UndoIcon/></button>
+                        <button onClick={handleBrushRedo} disabled={brushHistoryIndex >= brushHistory.length - 1} className="p-2 rounded-md hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed" title="Redo Brush Stroke"><RedoIcon/></button>
+                    </div>
+                    <div className="space-y-4 pt-2">
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">Brush Color</label>
                             <input
@@ -1191,6 +1248,30 @@ export const ImageEditor: React.FC = () => {
                         <div>
                              <label className="block text-sm font-medium text-slate-300 mb-2">Prompt</label>
                              <textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="w-full h-20 p-2 bg-slate-800/50 border border-slate-700 rounded-lg" placeholder="e.g., A dragon flying through a cyberpunk city" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Caption Text</label>
+                            <input 
+                                type="text"
+                                value={caption?.text || ''}
+                                onChange={(e) => setCaption(c => ({ text: e.target.value, style: c?.style || 'modern' }))}
+                                className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg"
+                                placeholder="Add optional caption..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Caption Style</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {(['modern', 'classic', 'funky'] as CaptionStyle[]).map(style => (
+                                    <button 
+                                        key={style}
+                                        onClick={() => setCaption(c => ({ text: c?.text || '', style: style }))}
+                                        className={`p-2 w-full text-sm font-semibold rounded-md transition-colors capitalize ${caption?.style === style ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}
+                                    >
+                                        {style}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                          <div>
                              <label className="block text-sm font-medium text-slate-300 mb-2">Style</label>
