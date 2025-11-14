@@ -16,6 +16,11 @@ interface HeroProps {
   spec: HeroSpec;
 }
 
+// FIX: Create constants for motion components to help with TypeScript type inference issues.
+const MotionH1 = motion.h1;
+const MotionP = motion.p;
+const MotionA = motion.a;
+
 const Hero: React.FC<HeroProps> = ({ spec }) => {
     const { navigateTo } = useAppContext();
 
@@ -29,28 +34,31 @@ const Hero: React.FC<HeroProps> = ({ spec }) => {
   return (
     <section className="relative w-full flex items-center justify-center text-center">
       <div className="z-10 p-4 flex flex-col items-center">
-        <motion.h1
+        {/* FIX: Used MotionH1 constant to ensure TypeScript correctly recognizes Framer Motion props. */}
+        <MotionH1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-5xl md:text-7xl lg:text-8xl font-extrabold text-white mb-4 tracking-tighter font-oswald"
         >
           {spec.title}
-        </motion.h1>
+        </MotionH1>
 
         {spec.subtitle && (
-          <motion.p
+          // FIX: Used MotionP constant to ensure TypeScript correctly recognizes Framer Motion props.
+          <MotionP
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="max-w-2xl text-lg md:text-xl text-slate-300 mb-8"
           >
             {spec.subtitle}
-          </motion.p>
+          </MotionP>
         )}
         
         {spec.cta && (
-            <motion.a
+            // FIX: Used MotionA constant to ensure TypeScript correctly recognizes Framer Motion props.
+            <MotionA
                 href={spec.cta.href}
                 onClick={handleCTAClick}
                 className="group inline-flex items-center justify-center gap-3 bg-cyan-500 text-black font-bold text-lg py-4 px-8 rounded-full hover:bg-cyan-400 transition-all duration-300 shadow-[0_0_25px_rgba(var(--cyan-glow),0.5)] hover:shadow-[0_0_40px_rgba(var(--cyan-glow),0.8)]"
@@ -62,7 +70,7 @@ const Hero: React.FC<HeroProps> = ({ spec }) => {
             >
                 <span>{spec.cta.label}</span>
                 <ArrowRightIcon className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
-            </motion.a>
+            </MotionA>
         )}
       </div>
     </section>

@@ -1,12 +1,17 @@
 // server/routes/clips.ts
-import { Router, type Request, type Response } from "express";
-import { redis as getRedisClient, CHANNEL, INBOX } from "../../lib/redis";
-import { automationQ } from "../../lib/queues";
+import express from "express";
+// FIX: Corrected module imports to point to the right location.
+import { redisConnection, automationQueue as automationQ } from "../queues";
 
-export const router = Router();
+export const router = express.Router();
+
+// FIX: Define missing constants that were previously in a non-existent file.
+const CHANNEL = "clipyube:events";
+const INBOX = (t = "default") => `clipyube:${t}:inbox`;
 
 // Reuse a single Redis client
-const r = getRedisClient();
+// FIX: Use the imported redisConnection instance directly instead of calling a non-existent function.
+const r = redisConnection;
 (async () => {
   try {
     if (!r.isOpen) await r.connect();
@@ -21,7 +26,8 @@ const r = getRedisClient();
  * Body: { url: string; tenant?: string }
  * Push a clip URL into the inbox and nudge the automation queue.
  */
-router.post("/ingest", async (req: Request, res: Response) => {
+// FIX: Added explicit Request/Response types to handler to resolve type conflicts.
+router.post("/ingest", async (req: express.Request, res: express.Response) => {
   const { url, tenant = "default" } = (req.body ?? {}) as { url?: string; tenant?: string };
   if (!url || typeof url !== "string") {
     return res.status(400).json({ ok: false, error: "URL is required" });
@@ -43,8 +49,9 @@ router.post("/ingest", async (req: Request, res: Response) => {
  * GET /api/clips/logs/:tenant
  * Server-Sent Events stream for real-time logs filtered by tenant.
  */
-router.get("/logs/:tenant", async (req: Request, res: Response) => {
-  const { tenant } = req.params as { tenant: string };
+// FIX: Added explicit Request/Response types to handler to resolve type conflicts.
+router.get("/logs/:tenant", async (req: express.Request, res: express.Response) => {
+  const { tenant } = req.params;
 
   // Basic SSE headers
   res.setHeader("Content-Type", "text/event-stream");
@@ -56,7 +63,7 @@ router.get("/logs/:tenant", async (req: Request, res: Response) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   // Flush the headers so the stream starts immediately
-  if (typeof (res as any).flushHeaders === "function") (res as any).flushHeaders();
+  if (typeof res.flushHeaders === "function") res.flushHeaders();
 
   // Create a dedicated sub connection
   const sub = r.duplicate();
@@ -111,6 +118,7 @@ router.get("/logs/:tenant", async (req: Request, res: Response) => {
   
   // The 'close' event on the request object is the most reliable way
   // to detect when the client has disconnected.
+  // FIX: Explicitly typing 'req' as express.Request provides the '.on' method, fixing the error.
   req.on("close", cleanup);
 });
 

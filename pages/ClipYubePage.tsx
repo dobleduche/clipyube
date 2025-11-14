@@ -46,7 +46,7 @@ const ClipYubePage: React.FC = () => {
   useEffect(() => {
     if (!isPipelineRunning) return;
 
-    const eventSource = new EventSource(`/api/clips/logs/${TENANT_ID}`);
+    const eventSource = new EventSource(`http://localhost:3010/api/clips/logs/${TENANT_ID}`);
     console.log("Connecting to SSE log stream...");
 
     eventSource.onmessage = (event) => {

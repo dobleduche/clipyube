@@ -2,6 +2,8 @@
 // It makes fetch requests to the server, which then handles the direct
 // interaction with external services like Google Gemini.
 
+const API_BASE_URL = 'http://localhost:3010';
+
 /**
  * A generic helper to call the backend's image generation endpoint.
  */
@@ -13,7 +15,7 @@ export const generateImageContent = async (
   styleBase64?: string,
   styleMimeType?: string
 ): Promise<string> => {
-    const response = await fetch('/api/generate/image', {
+    const response = await fetch(`${API_BASE_URL}/api/generate/image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -39,7 +41,7 @@ export const generateImageContent = async (
  * Calls the backend to generate text content using the Gemini Pro model.
  */
 export const generateTextContent = async (prompt: string): Promise<string> => {
-    const response = await fetch('/api/generate/text', {
+    const response = await fetch(`${API_BASE_URL}/api/generate/text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -65,7 +67,7 @@ export const generateVideoWithVeo = (
     return new Promise(async (resolve, reject) => {
         try {
             // 1. Start the video generation task on the server
-            const startResponse = await fetch('/api/generate/video', {
+            const startResponse = await fetch(`${API_BASE_URL}/api/generate/video`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt, aspectRatio, resolution }),
@@ -79,7 +81,7 @@ export const generateVideoWithVeo = (
             const { taskId } = await startResponse.json();
 
             // 2. Connect to the SSE stream for progress updates
-            const eventSource = new EventSource(`/api/generate/video/stream/${taskId}`);
+            const eventSource = new EventSource(`${API_BASE_URL}/api/generate/video/stream/${taskId}`);
             
             eventSource.onmessage = async (event) => {
                 const data = JSON.parse(event.data);
@@ -92,7 +94,7 @@ export const generateVideoWithVeo = (
                     onProgress("Download started...");
                     // 3. The backend provides a proxied download URL. Fetch it to get the video blob.
                     try {
-                        const videoResponse = await fetch(data.finalUrl);
+                        const videoResponse = await fetch(`${API_BASE_URL}${data.finalUrl}`);
                         if (!videoResponse.ok) throw new Error("Failed to download final video.");
                         const videoBlob = await videoResponse.blob();
                         resolve(URL.createObjectURL(videoBlob));
@@ -138,7 +140,7 @@ export const generateVideoWithRunway = async (
  * Calls the backend to run the viral agent for content discovery.
  */
 export const runDiscoveryAgent = async (niche: string, platforms: string[]): Promise<any[]> => {
-    const response = await fetch('/api/discovery/run', {
+    const response = await fetch(`${API_BASE_URL}/api/discovery/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ niche, platforms }),
@@ -154,7 +156,7 @@ export const runDiscoveryAgent = async (niche: string, platforms: string[]): Pro
  * Sends a video URL to the backend to be ingested into the processing pipeline.
  */
 export const ingestClip = async (url: string, tenant: string = 'default'): Promise<Response> => {
-    return fetch('/api/clips/ingest', {
+    return fetch(`${API_BASE_URL}/api/clips/ingest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, tenant }),

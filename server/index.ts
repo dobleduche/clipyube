@@ -1,17 +1,23 @@
 // server/index.ts
 import "dotenv/config";
-import express, { type Request, type Response, type NextFunction } from "express";
+// FIX: Use default import to avoid type conflicts with global Request/Response
+import express from "express";
 import cors from "cors";
-// FIX: Removed unused 'ai' and 'scaffold' imports to clean up the file.
 import { router as generate } from "./routes/generate";
 import { router as discovery } from "./routes/discovery";
 import { router as publish } from "./routes/publish";
 import { router as clips } from "./routes/clips";
+import { router as automation } from "./routes/automation";
 
 // Boot workers (idempotent)
-import "../clipWorker";
+import "./workers/automationWorker";
+import "./workers/captionWorker";
+import "./workers/discoveryWorker";
+import "./workers/generationWorker";
+import "./workers/pipelineWorker";
+import "./workers/transcodeWorker";
+import "./workers/thumbnailWorker";
 
-// FIX: Declared 'app' before its use to resolve "used before its declaration" errors.
 const app = express();
 
 // Middlewares
@@ -29,22 +35,25 @@ app.use(express.urlencoded({ limit: "50mb", extended: true })); // for form bodi
 app.use("/generated", express.static("generated"));
 
 // Routes
-// FIX: Removed unused legacy routes for '/api/ai' and '/api/scaffold'.
+// FIX: Type errors in router files were causing overloads to fail here. Fixing router files resolves this.
 app.use("/api/generate", generate);
 app.use("/api/discovery", discovery);
 app.use("/api/publish", publish);
 app.use("/api/clips", clips);
+app.use("/api/automation", automation);
 
 // Health check
-app.get("/api/health", (_req: Request, res: Response) => res.status(200).json({ status: "ok" }));
+// FIX: Use express.Request and express.Response to ensure correct types are used.
+app.get("/api/health", (_req: express.Request, res: express.Response) => res.status(200).json({ status: "ok" }));
 
 // Central error handler
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+// FIX: Use express.Request, express.Response, and express.NextFunction for correct error handler signature.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("Server error:", err);
   res.status(err?.status || 500).json({ ok: false, error: err?.message ?? "Internal Server Error" });
 });
 
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.PORT) || 3010;
 app.listen(port, () => console.log(`API up on :${port}`));
 
 export default app;

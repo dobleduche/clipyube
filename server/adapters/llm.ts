@@ -62,23 +62,28 @@ export const generateImageContent = async (
 };
 
 /**
- * Generates text content on the server.
+ * Generates text content on the server with retry logic.
  */
-export const generateTextContent = async (prompt: string): Promise<string> => {
-     try {
-        const response = await ai.models.generateContent({
-            model: proModel,
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (error) {
-        console.error(`Error in LLM adapter for text generation:`, error);
-        if (error instanceof Error) {
-            throw new Error(`Gemini API Error during text generation: ${error.message}`);
+export const generateTextContent = async (prompt: string, retries = 1): Promise<string> => {
+    let lastError: Error | null = null;
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: proModel,
+                contents: prompt,
+            });
+            return response.text.trim();
+        } catch (error) {
+            console.error(`Error in LLM adapter for text generation (attempt ${i + 1}):`, error);
+            lastError = error instanceof Error ? error : new Error('Unknown API error');
+            if (i < retries - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // simple backoff
+            }
         }
-        throw new Error(`An unknown Gemini API error occurred during text generation.`);
     }
+    throw new Error(`Gemini API Error after ${retries} attempts: ${lastError?.message}`);
 };
+
 
 /**
  * Starts a video generation task with Google Veo and returns the operation object.

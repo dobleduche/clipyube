@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeftIcon } from '../components/Icons';
+import { ArrowLeftIcon, PrintIcon, DownloadIcon } from '../components/Icons';
 import { useAppContext } from '../context/AppContext';
 import ShareComponent from '../components/ShareComponent';
 import { motion } from 'framer-motion';
@@ -18,6 +18,9 @@ interface BlogPageProps {
     posts: BlogPost[];
     slug?: string;
 }
+
+// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
+const MotionA = motion.a;
 
 const BlogPage: React.FC<BlogPageProps> = ({ posts, slug }) => {
     const { navigateTo } = useAppContext();
@@ -43,11 +46,33 @@ const BlogPage: React.FC<BlogPageProps> = ({ posts, slug }) => {
             );
         }
         
-        const postUrl = `${window.location.origin}${window.location.pathname}#/blog/${post.slug}`;
+        const postUrl = window.location.href;
+
+        const handlePrint = () => {
+            window.print();
+        };
+
+        const handleDownloadDoc = (title: string, content: string) => {
+            const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            const filename = `${slug}.doc`;
+            
+            // This is a trick to make Word open the HTML file.
+            const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${title}</title></head><body>`;
+            const footer = "</body></html>";
+            const sourceHTML = header + `<h1>${title}</h1>` + content + footer;
+
+            const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+            const fileDownload = document.createElement("a");
+            document.body.appendChild(fileDownload);
+            fileDownload.href = source;
+            fileDownload.download = filename;
+            fileDownload.click();
+            document.body.removeChild(fileDownload);
+        };
 
         return (
             <div className="max-w-4xl mx-auto">
-                <a href="#/blog" onClick={(e) => handleNavClick(e, '#/blog')} className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold mb-6 transition-colors">
+                <a href="#/blog" onClick={(e) => handleNavClick(e, '#/blog')} className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 font-semibold mb-6 transition-colors non-printable">
                     <ArrowLeftIcon />
                     Back to All Posts
                 </a>
@@ -57,7 +82,15 @@ const BlogPage: React.FC<BlogPageProps> = ({ posts, slug }) => {
                         <div>
                             <span>By {post.author}</span> &bull; <span>{post.date}</span>
                         </div>
-                        <ShareComponent url={postUrl} title={post.title} />
+                        <div className="sharing-controls flex items-center gap-2">
+                            <button onClick={handlePrint} title="Print or Save as PDF" className="p-2 rounded-full hover:bg-white/10 transition-colors text-slate-300">
+                                <PrintIcon />
+                            </button>
+                            <button onClick={() => handleDownloadDoc(post.title, post.content)} title="Download as Word (.doc)" className="p-2 rounded-full hover:bg-white/10 transition-colors text-slate-300">
+                                <DownloadIcon />
+                            </button>
+                            <ShareComponent url={postUrl} title={post.title} />
+                        </div>
                     </div>
                     <img src={post.image} alt={post.title} className="w-full h-auto max-h-96 object-cover rounded-xl shadow-lg mb-8 ring-1 ring-white/10" />
                     <div 
@@ -77,7 +110,8 @@ const BlogPage: React.FC<BlogPageProps> = ({ posts, slug }) => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
                 {posts.map(post => (
-                    <motion.a
+                    // FIX: Used MotionA constant to ensure TypeScript correctly recognizes Framer Motion props.
+                    <MotionA
                         href={`#/blog/${post.slug}`}
                         onClick={(e) => handleNavClick(e, `#/blog/${post.slug}`)}
                         key={post.slug}
@@ -91,7 +125,7 @@ const BlogPage: React.FC<BlogPageProps> = ({ posts, slug }) => {
                             <p className="text-slate-400 text-sm mb-4">{post.date}</p>
                             <p className="text-slate-300">{post.snippet}</p>
                         </div>
-                    </motion.a>
+                    </MotionA>
                 ))}
             </div>
         </div>

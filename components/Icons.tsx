@@ -268,6 +268,12 @@ export const CopyIcon: React.FC<{ className?: string }> = ({ className = 'h-6 w-
     </svg>
 );
 
+export const PrintIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm2-9V5a2 2 0 012-2h2a2 2 0 012 2v3m-2 0H9" />
+    </svg>
+);
+
 export const GoogleIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
         <path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.19,4.73C14.03,4.73 15.69,5.36 16.95,6.55L19.22,4.28C17.11,2.43 14.68,1.48 12.19,1.48C6.92,1.48 2.72,6.03 2.72,12C2.72,17.97 6.92,22.52 12.19,22.52C17.62,22.52 21.62,18.33 21.62,12.27C21.62,11.76 21.5,11.41 21.35,11.1Z" />

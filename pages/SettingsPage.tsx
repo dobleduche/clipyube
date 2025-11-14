@@ -1,12 +1,13 @@
 import React from 'react';
 import { useSettings } from '../context/SettingsContext';
+import Loader from '../components/Loader';
 
 const SettingsPage: React.FC = () => {
-    const { settings, updateSettings } = useSettings();
+    const { settings, updateSettings, isLoaded } = useSettings();
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        updateSettings({ [name]: value });
+        updateSettings({ [name]: name === 'automationInterval' ? parseInt(value, 10) : value });
     };
 
     const handleWatermarkChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -20,10 +21,19 @@ const SettingsPage: React.FC = () => {
         });
     };
 
+    if (!isLoaded) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <Loader />
+                <span className="ml-4 text-slate-300">Loading settings...</span>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-4xl mx-auto py-8">
             <div className="text-center mb-12">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-3 font-oswald text-gradient-cyan-sanguine">
+                <h2 className="text-4xl md-text-5xl font-extrabold text-white mb-3 font-oswald text-gradient-cyan-sanguine">
                     Settings & Profile
                 </h2>
                 <p className="text-lg text-slate-400">
@@ -91,6 +101,7 @@ const SettingsPage: React.FC = () => {
                                 onChange={handleInputChange}
                                 className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg"
                             >
+                                <option value={60000 * 5}>5 Minutes (for testing)</option>
                                 <option value={3600000}>1 Hour</option>
                                 <option value={21600000}>6 Hours</option>
                                 <option value={43200000}>12 Hours</option>

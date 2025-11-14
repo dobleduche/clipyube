@@ -1,14 +1,17 @@
-import { Router } from 'express';
+import express from 'express';
 import * as llm from '../adapters/llm';
 import { GoogleGenAI } from '@google/genai';
+import * as analysisService from '../services/analysisService';
+import { sanitizeHtml } from '../../utils/sanitize';
 
-export const router = Router();
+export const router = express.Router();
 
 // In-memory store for video generation tasks
 const videoTasks: { [key: string]: any } = {};
 
-// POST /api/generate/text
-router.post('/text', async (req, res) => {
+// POST /api/generate/text - Generic text generation
+// FIX: Use express.Request and express.Response for correct types.
+router.post('/text', async (req: express.Request, res: express.Response) => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -22,8 +25,64 @@ router.post('/text', async (req, res) => {
     }
 });
 
+// POST /api/generate/blog
+// New endpoint with server-side validation
+// FIX: Use express.Request and express.Response for correct types.
+router.post('/blog', async (req: express.Request, res: express.Response) => {
+    try {
+        const { idea } = req.body;
+        if (!idea) {
+            return res.status(400).json({ error: 'Content idea is required.' });
+        }
+
+        const prompt = `
+            You are an expert content creator and SEO specialist. Write a comprehensive, engaging blog post (minimum 1000 words) based on this idea:
+            Title: "${idea.title}"
+            Brief: "${idea.brief}"
+            Keywords: ${idea.keywords.join(', ')}
+            The output must be a single block of clean HTML, including <p>, <h3>, <h4>, <ul>, <ol>, <li>, <strong>, and at least 3 authoritative <a> backlinks. Do not include a main <h1> or <h2> title.
+        `;
+        
+        const rawContent = await llm.generateTextContent(prompt, 2); // Allow for retries
+        const sanitizedContent = sanitizeHtml(rawContent);
+
+        // Server-side validation
+        const validation = analysisService.validateBlogPost(sanitizedContent, idea.keywords);
+        if (!validation.isValid) {
+            // Log this failure for manual review
+            console.warn(`Blog post failed validation for title "${idea.title}". Reasons: ${validation.reasons.join(', ')}`);
+            // Here you could trigger a regeneration automatically or just fail
+            return res.status(500).json({ 
+                error: 'Generated content failed quality checks.',
+                details: validation.reasons 
+            });
+        }
+        
+        const slug = idea.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+        const blogPost = {
+            slug,
+            title: idea.title,
+            author: 'AI Agent',
+            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            image: 'https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+            snippet: idea.brief,
+            content: sanitizedContent,
+            ...validation.metadata
+        };
+        
+        res.json({ blogPost });
+
+    } catch (error) {
+        console.error('Blog generation error:', error);
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
+
+
 // POST /api/generate/image
-router.post('/image', async (req, res) => {
+// FIX: Use express.Request and express.Response for correct types.
+router.post('/image', async (req: express.Request, res: express.Response) => {
     try {
         const { base64Data, mimeType, prompt, operationDescription, styleBase64, styleMimeType } = req.body;
         if (!base64Data || !mimeType || !prompt) {
@@ -38,7 +97,8 @@ router.post('/image', async (req, res) => {
 });
 
 // POST /api/generate/video
-router.post('/video', async (req, res) => {
+// FIX: Use express.Request and express.Response for correct types.
+router.post('/video', async (req: express.Request, res: express.Response) => {
     try {
         const { prompt, aspectRatio, resolution } = req.body;
         if (!prompt) {
@@ -47,7 +107,6 @@ router.post('/video', async (req, res) => {
         
         const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        // Start the generation but don't wait for it to finish
         const operationPromise = llm.startVideoGeneration(prompt, aspectRatio, resolution);
 
         videoTasks[taskId] = {
@@ -67,7 +126,8 @@ router.post('/video', async (req, res) => {
 
 
 // GET /api/generate/video/stream/:taskId
-router.get('/video/stream/:taskId', async (req, res) => {
+// FIX: Use express.Request and express.Response for correct types.
+router.get('/video/stream/:taskId', async (req: express.Request, res: express.Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];
 
@@ -75,7 +135,6 @@ router.get('/video/stream/:taskId', async (req, res) => {
         return res.status(404).json({ error: 'Task not found.' });
     }
 
-    // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -104,11 +163,8 @@ router.get('/video/stream/:taskId', async (req, res) => {
         if (!downloadLink) {
             throw new Error("Video generation completed, but no download link was provided.");
         }
-
-        // Store the final link to be fetched by the proxy download endpoint
-        task.finalDownloadLink = downloadLink;
         
-        // Send a proxied URL to the client
+        task.finalDownloadLink = downloadLink;
         sendEvent({ finalUrl: `/api/generate/download/${taskId}` });
 
     } catch (error) {
@@ -116,13 +172,13 @@ router.get('/video/stream/:taskId', async (req, res) => {
         sendEvent({ error: (error as Error).message });
     } finally {
         res.end();
-        // Clean up the task after a delay
         setTimeout(() => delete videoTasks[taskId], 60000);
     }
 });
 
 // GET /api/generate/download/:taskId
-router.get('/download/:taskId', async (req, res) => {
+// FIX: Use express.Request and express.Response for correct types.
+router.get('/download/:taskId', async (req: express.Request, res: express.Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];
 
@@ -132,9 +188,6 @@ router.get('/download/:taskId', async (req, res) => {
 
     try {
         const downloadUrlWithKey = `${task.finalDownloadLink}&key=${process.env.API_KEY}`;
-        
-        // Use node-fetch or a similar library if your environment needs it.
-        // The native fetch is available in recent Node.js versions.
         const videoResponse = await fetch(downloadUrlWithKey);
 
         if (!videoResponse.ok || !videoResponse.body) {
@@ -144,7 +197,6 @@ router.get('/download/:taskId', async (req, res) => {
         res.setHeader('Content-Type', videoResponse.headers.get('Content-Type') || 'video/mp4');
         res.setHeader('Content-Length', videoResponse.headers.get('Content-Length') || '');
         
-        // Stream the video body directly to the client response
         const reader = videoResponse.body.getReader();
         while (true) {
             const { done, value } = await reader.read();

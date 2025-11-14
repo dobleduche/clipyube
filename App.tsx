@@ -1,6 +1,9 @@
 
 
 
+
+
+
 import React from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -22,8 +25,12 @@ import SmokeTestPage from './pages/SmokeTestPage';
 import { useAppContext } from './context/AppContext';
 import { useSettings } from './context/SettingsContext';
 // FIX: Import Transition type from framer-motion to resolve typing error.
-import { motion, AnimatePresence, Transition } from 'framer-motion';
+// FIX: Removed Transition type import to resolve type conflict. Let TypeScript infer the type.
+import { motion, AnimatePresence } from 'framer-motion';
 import CookieConsentBanner from './components/CookieConsentBanner';
+
+// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
+const MotionDiv = motion.div;
 
 const App: React.FC = () => {
   const { route, blogPosts } = useAppContext();
@@ -86,11 +93,14 @@ const App: React.FC = () => {
   };
 
   // FIX: Explicitly type pageTransition with the Transition type to fix assignment error.
-  const pageTransition: Transition = {
+  // FIX: Removed explicit Transition type to let TypeScript infer it, resolving a type conflict.
+  // FIX: Use 'as const' to prevent TypeScript from widening the type of 'tween' to a generic string,
+  // which resolves the type incompatibility with Framer Motion's Transition type.
+  const pageTransition = {
     type: 'tween',
     ease: 'anticipate',
     duration: 0.5,
-  };
+  } as const;
 
   return (
     <div className="min-h-screen text-gray-200 flex flex-col">
@@ -100,7 +110,8 @@ const App: React.FC = () => {
             <p className="text-right text-slate-400 mb-4 -mt-2">Welcome back, {settings.profileName}!</p>
          )}
         <AnimatePresence mode="wait">
-            <motion.div
+            {/* FIX: Used MotionDiv constant to ensure TypeScript correctly recognizes Framer Motion props. */}
+            <MotionDiv
                 key={route}
                 initial="initial"
                 animate="in"
@@ -109,7 +120,7 @@ const App: React.FC = () => {
                 transition={pageTransition}
             >
                 {renderContent()}
-            </motion.div>
+            </MotionDiv>
         </AnimatePresence>
       </main>
       <Footer />

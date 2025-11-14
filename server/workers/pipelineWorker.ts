@@ -1,34 +1,38 @@
+// server/workers/pipelineWorker.ts
 import { Worker } from 'bullmq';
-import { redisConnection, publishQueue } from '../queues';
+import { redisConnection, renderQueue, publishQueue } from '../queues';
 import { renderDraft, publishDraft } from '../services/pipeline';
+import * as db from '../db';
 
 console.log('Starting Pipeline Workers (Render & Publish)...');
 
 // Worker for the 'render' queue
-new Worker('render', async job => {
+new Worker(renderQueue.name, async job => {
     const { draftId } = job.data;
-    console.log(`RENDER WORKER: Processing job to render draft ${draftId}`);
+    db.addAutomationLog(`Render worker processing job for draft ${draftId}`);
     try {
         await renderDraft(draftId);
         // After rendering is complete, trigger the publish job
         await publishQueue.add('publish-video', { draftId });
-        console.log(`RENDER WORKER: Render successful. Added job to publish queue for draft ${draftId}.`);
+        db.addAutomationLog(`Render successful. Enqueued publish job for draft ${draftId}.`);
     } catch (error) {
-        console.error(`RENDER WORKER: Job failed for draft ${draftId}`, error);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        db.addAutomationLog(`Render worker failed for draft ${draftId}: ${message}`, 'error');
         throw error;
     }
 }, { connection: redisConnection });
 
 
 // Worker for the 'publish' queue
-new Worker('publish', async job => {
+new Worker(publishQueue.name, async job => {
     const { draftId } = job.data;
-    console.log(`PUBLISH WORKER: Processing job to publish draft ${draftId}`);
+    db.addAutomationLog(`Publish worker processing job for draft ${draftId}`);
     try {
         await publishDraft(draftId);
-        console.log(`PUBLISH WORKER: Successfully published draft ${draftId}.`);
+        db.addAutomationLog(`Successfully published draft ${draftId}.`, 'success');
     } catch (error) {
-        console.error(`PUBLISH WORKER: Job failed for draft ${draftId}`, error);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        db.addAutomationLog(`Publish worker failed for draft ${draftId}: ${message}`, 'error');
         throw error;
     }
 }, { connection: redisConnection });

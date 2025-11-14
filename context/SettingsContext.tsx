@@ -1,6 +1,7 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 
-type WatermarkSettings = {
+export type WatermarkSettings = {
     type: 'text' | 'image';
     text: string;
     font: string;
@@ -11,7 +12,7 @@ type WatermarkSettings = {
     position: 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
 };
 
-interface Settings {
+export interface Settings {
     profileName: string;
     defaultNiche: string;
     twitterHandle: string;
@@ -37,50 +38,55 @@ const defaultSettings: Settings = {
 
 interface SettingsContextType {
     settings: Settings;
+    isLoaded: boolean;
     updateSettings: (newSettings: Partial<Settings>) => void;
-    saveSettings: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-const SETTINGS_KEY = 'clipyube-user-settings';
-
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [settings, setSettings] = useState<Settings>(() => {
-        try {
-            const savedSettings = localStorage.getItem(SETTINGS_KEY);
-            if (savedSettings) {
-                // Merge saved settings with defaults to ensure new properties are not missing
-                return { ...defaultSettings, ...JSON.parse(savedSettings) };
-            }
-        } catch (e) {
-            console.error("Failed to load settings from localStorage", e);
-        }
-        return defaultSettings;
-    });
+    const [settings, setSettings] = useState<Settings>(defaultSettings);
+    const [isLoaded, setIsLoaded] = useState(false);
 
-    const updateSettings = (newSettings: Partial<Settings>) => {
-        setSettings(prev => ({ ...prev, ...newSettings }));
-    };
-
-    const saveSettings = () => {
-        try {
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-        } catch (e) {
-            console.error("Failed to save settings to localStorage", e);
-        }
-    };
-    
-    // Auto-save on change
+    // Fetch initial settings from the backend
     useEffect(() => {
-        const debounceTimeout = setTimeout(() => {
-            saveSettings();
-        }, 500);
-        return () => clearTimeout(debounceTimeout);
-    }, [settings]);
+        const fetchSettings = async () => {
+            try {
+                const response = await fetch('http://localhost:3010/api/automation/settings');
+                if (response.ok) {
+                    const serverSettings = await response.json();
+                    setSettings(serverSettings);
+                }
+            } catch (error) {
+                console.error("Failed to fetch settings from server:", error);
+            } finally {
+                setIsLoaded(true);
+            }
+        };
+        fetchSettings();
+    }, []);
+    
+    const debouncedSaveSettings = useDebouncedCallback(async (newSettings: Settings) => {
+        try {
+            await fetch('http://localhost:3010/api/automation/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newSettings),
+            });
+        } catch (error) {
+            console.error("Failed to save settings to server:", error);
+        }
+    }, 500);
 
+    const updateSettings = useCallback((newSettings: Partial<Settings>) => {
+        setSettings(prev => {
+            const updated = { ...prev, ...newSettings };
+            debouncedSaveSettings(updated);
+            return updated;
+        });
+    }, [debouncedSaveSettings]);
 
-    const value = { settings, updateSettings, saveSettings };
+    const value = { settings, isLoaded, updateSettings };
 
     return (
         <SettingsContext.Provider value={value}>

@@ -1,9 +1,10 @@
-import { Router } from 'express';
+import express from 'express';
 
-export const router = Router();
+export const router = express.Router();
 
 // POST /api/publish/youtube
-router.post('/youtube', (req, res) => {
+// FIX: Add explicit Request and Response types to the handler.
+router.post('/youtube', (req: express.Request, res: express.Response) => {
     const { draftId, title, description } = req.body;
     console.log(`Received request to publish draft ${draftId} to YouTube with title: ${title}`);
     
@@ -16,7 +17,8 @@ router.post('/youtube', (req, res) => {
 });
 
 // POST /api/publish/cms
-router.post('/cms', (req, res) => {
+// FIX: Add explicit Request and Response types to the handler.
+router.post('/cms', (req: express.Request, res: express.Response) => {
     const { draftId, content } = req.body;
     console.log(`Received request to publish draft ${draftId} to CMS.`);
     

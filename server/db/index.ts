@@ -1,11 +1,37 @@
+// server/db/index.ts
 // Simple in-memory database for demonstration purposes.
-// In a production environment, this would be replaced with a real database connection (e.g., PostgreSQL, Supabase).
+
+import { Settings } from '../../context/SettingsContext';
+
+// Default settings that can be overridden by user
+const defaultSettings: Settings = {
+    profileName: 'AI Content Creator',
+    defaultNiche: 'AI Technology',
+    twitterHandle: '',
+    automationInterval: 3600000, // 1 hour
+    watermarkDefaults: {
+        type: 'text',
+        text: 'Clip-Yube',
+        font: 'Oswald',
+        fontSize: 48,
+        color: '#ffffff',
+        opacity: 0.7,
+        position: 'bottom-right',
+    },
+};
 
 interface DbData {
   sources: any[];
   discoveries: any[];
   drafts: any[];
   publishes: any[];
+  thumbnails: any[];
+  // Application State
+  automation: {
+    isRunning: boolean;
+    logs: { timestamp: string; message: string; type: 'info' | 'success' | 'error' }[];
+  };
+  settings: Settings;
 }
 
 const db: DbData = {
@@ -13,17 +39,46 @@ const db: DbData = {
   discoveries: [],
   drafts: [],
   publishes: [],
+  thumbnails: [],
+  automation: {
+    isRunning: false,
+    logs: [],
+  },
+  settings: defaultSettings,
 };
 
 export const getTable = <T extends keyof DbData>(tableName: T): DbData[T] => {
   return db[tableName];
 };
 
-export const addItem = <T extends keyof DbData>(tableName: T, item: any) => {
-  db[tableName].push(item);
+export const addItem = <T extends keyof (Omit<DbData, 'automation' | 'settings'>)>(tableName: T, item: any) => {
+  (db[tableName] as any[]).push(item);
   return item;
 };
 
 export const findItemById = <T extends keyof DbData>(tableName: T, id: string): any | undefined => {
   return (db[tableName] as any[]).find(item => item.id === id);
+};
+
+// State management functions
+export const getAutomationState = () => db.automation;
+export const setAutomationRunning = (isRunning: boolean) => {
+  db.automation.isRunning = isRunning;
+};
+export const addAutomationLog = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    const newLog = { timestamp: new Date().toISOString(), message, type };
+    db.automation.logs.unshift(newLog); // Add to the top
+    if (db.automation.logs.length > 200) { // Keep logs from growing indefinitely
+        db.automation.logs.pop();
+    }
+};
+
+export const getSettings = () => db.settings;
+export const updateSettings = (newSettings: Partial<Settings>) => {
+    db.settings = { ...db.settings, ...newSettings };
+    // In a real app, you might merge nested objects like watermarkDefaults more carefully
+    if (newSettings.watermarkDefaults) {
+        db.settings.watermarkDefaults = { ...db.settings.watermarkDefaults, ...newSettings.watermarkDefaults };
+    }
+    return db.settings;
 };

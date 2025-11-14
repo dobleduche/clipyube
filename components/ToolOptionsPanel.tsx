@@ -14,6 +14,9 @@ interface ToolOptionsPanelProps {
   onCancel?: () => void;
 }
 
+// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
+const MotionDiv = motion.div;
+
 const ToolOptionsPanel: React.FC<ToolOptionsPanelProps> = ({ 
     title, 
     icon, 
@@ -47,7 +50,8 @@ const ToolOptionsPanel: React.FC<ToolOptionsPanelProps> = ({
       </button>
       <AnimatePresence initial={false}>
         {isOpen && (
-            <motion.div
+            // FIX: Used MotionDiv constant to ensure TypeScript correctly recognizes Framer Motion props.
+            <MotionDiv
                 id={`panel-content-${title.replace(/\s/g, '-')}`}
                 key="content"
                 initial="collapsed"
@@ -69,7 +73,7 @@ const ToolOptionsPanel: React.FC<ToolOptionsPanelProps> = ({
                         <button onClick={onApply} className="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-500 transition-colors text-sm">Apply</button>
                     </div>
                 )}
-            </motion.div>
+            </MotionDiv>
         )}
       </AnimatePresence>
     </div>

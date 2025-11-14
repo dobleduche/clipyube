@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, generateVideoWithVeo } from '../services/geminiService';
 import { generateVideoWithRunway } from '../services/runwayService';
@@ -218,6 +221,9 @@ const defaultEffects = {
     stroke: { color: '#ffffff', width: 0 },
     shadow: { color: 'rgba(0,0,0,0.5)', blur: 0, offsetX: 0, offsetY: 0 },
 };
+
+// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
+const MotionImg = motion.img;
 
 // FIX: Export the component as a named export.
 export const ImageEditor: React.FC = () => {
@@ -713,6 +719,36 @@ export const ImageEditor: React.FC = () => {
         }
     }, [currentHistoryState, prompt, quality, bakeAndCommitEffects, updateHistory]);
     
+    const handleRemoveBackground = useCallback(async () => {
+        if (!currentHistoryState?.imageFile) {
+            setError('Please upload an image first.');
+            return;
+        }
+
+        setLoadingMessage('Removing background...');
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const bakedState = await bakeAndCommitEffects();
+            if (!bakedState || !bakedState.imageFile) {
+                throw new Error("Could not prepare image for background removal.");
+            }
+            
+            const base64Data = await fileToBase64(bakedState.imageFile);
+            const resultUrl = await removeImageBackground(base64Data, bakedState.imageFile.type);
+            const resultFile = await dataUrlToFile(resultUrl, 'bg-removed-image.png');
+            
+            updateHistory({ imageUrl: resultUrl, imageFile: resultFile });
+
+        } catch (err) {
+            setError(getFriendlyErrorMessage(err, 'Background Removal'));
+        } finally {
+            setIsLoading(false);
+            setLoadingMessage('');
+        }
+    }, [currentHistoryState, bakeAndCommitEffects, updateHistory]);
+
     const handlePromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Enter' && !event.shiftKey && !isLoading && prompt.trim() && !isCropping) {
             event.preventDefault();
@@ -1104,7 +1140,8 @@ export const ImageEditor: React.FC = () => {
                 </div>
                 <div ref={imageContainerRef} className="relative w-full aspect-square bg-black/30 rounded-2xl overflow-hidden flex items-center justify-center">
                     <AnimatePresence>
-                         <motion.img
+                         {/* FIX: Used MotionImg constant to ensure TypeScript correctly recognizes Framer Motion props. */}
+                         <MotionImg
                             ref={mainImageRef}
                             key={currentHistoryState.id}
                             src={currentHistoryState.imageUrl}
@@ -1171,7 +1208,7 @@ export const ImageEditor: React.FC = () => {
                         disabled={isLoading || !prompt.trim()}
                         className="w-full flex items-center justify-center gap-2 mt-2 bg-cyan-500 text-black font-bold py-2 px-4 rounded-lg hover:bg-cyan-400 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                     >
-                        {isLoading ? <><Loader /> {loadingMessage || 'Generating...'}</> : <><MagicWandIcon /> Generate</>}
+                        {isLoading && !loadingMessage.includes('background') ? <><Loader /> {loadingMessage || 'Generating...'}</> : <><MagicWandIcon /> Generate</>}
                     </button>
                     {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
                 </div>
@@ -1190,6 +1227,10 @@ export const ImageEditor: React.FC = () => {
                          <button onClick={() => toggleTool('brush')} className={toolButtonClasses('brush')}>
                             <BrushIcon />
                              <span className="mt-1">Brush</span>
+                        </button>
+                        <button onClick={handleRemoveBackground} disabled={isLoading} className="p-2 rounded-lg transition-colors duration-200 flex flex-col items-center justify-center text-xs w-full h-16 text-center bg-slate-700/50 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading && loadingMessage.includes('background') ? <Loader/> : <BackgroundEraserIcon />}
+                            <span className="mt-1">{isLoading && loadingMessage.includes('background') ? 'Erasing...' : 'BG Erase'}</span>
                         </button>
                     </div>
                 </div>

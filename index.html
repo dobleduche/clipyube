@@ -123,6 +123,59 @@
         mix-blend-mode: screen;
         will-change: transform;
       }
+      
+      /* Print Styles */
+      @media print {
+        body {
+          background: #fff !important;
+          color: #000 !important;
+          font-family: 'Lora', serif;
+          font-size: 11pt;
+          line-height: 1.5;
+        }
+        nav, footer, .sharing-controls, .non-printable, #root > div > div:last-child /* Cookie Banner */ {
+          display: none !important;
+        }
+        main {
+          padding: 0 !important;
+          margin: 0.5in !important;
+          width: auto !important;
+          border: none !important;
+          box-shadow: none !important;
+          flex-grow: unset !important;
+          container: unset !important;
+        }
+        article {
+            padding: 0 !important;
+            background: transparent !important;
+        }
+        article img {
+          max-width: 100% !important;
+          page-break-inside: avoid;
+        }
+        .prose, .prose p, .prose li {
+          color: #000 !important;
+        }
+        .prose a {
+          color: #000 !important;
+          text-decoration: underline !important;
+        }
+        .prose a[href^="http"]:after, .prose a[href^="https"]:after {
+          content: " (" attr(href) ")";
+          font-size: 90%;
+          color: #555;
+          word-break: break-all;
+        }
+        h1, h2, h3, h4, h5, h6 {
+          color: #000 !important;
+          text-shadow: none !important;
+          background-image: none !important;
+          -webkit-background-clip: unset !important;
+          background-clip: unset !important;
+          page-break-after: avoid;
+          font-family: 'Oswald', sans-serif;
+        }
+      }
     </style>
   <script type="importmap">
 {

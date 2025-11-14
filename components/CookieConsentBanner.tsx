@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const COOKIE_CONSENT_KEY = 'clipyube-cookie-consent';
 
+// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
+const MotionDiv = motion.div;
+
 const CookieConsentBanner: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
 
@@ -25,7 +28,8 @@ const CookieConsentBanner: React.FC = () => {
     return (
         <AnimatePresence>
             {isVisible && (
-                <motion.div
+                // FIX: Used MotionDiv constant to ensure TypeScript correctly recognizes Framer Motion props.
+                <MotionDiv
                     initial={{ y: '100%' }}
                     animate={{ y: '0%' }}
                     exit={{ y: '100%' }}
@@ -64,7 +68,7 @@ const CookieConsentBanner: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </motion.div>
+                </MotionDiv>
             )}
         </AnimatePresence>
     );

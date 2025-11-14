@@ -1,11 +1,13 @@
-import React, { useMemo } from 'react';
-import { useAppContext } from '../context/AppContext';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { RocketIcon, PlayIcon, StopIcon, TrendingUpIcon, DocumentTextIcon } from '../components/Icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import Loader from '../components/Loader';
 
-// FIX: Define a type for pipeline status values to be reused.
+const MotionDiv = motion.div;
+
 type PipelineStatusValue = 'pending' | 'active' | 'complete';
+type AutomationLog = { timestamp: string; message: string; type: 'info' | 'success' | 'error' };
 
 // Pipeline Stage Component
 const PipelineStage: React.FC<{
@@ -20,7 +22,7 @@ const PipelineStage: React.FC<{
   };
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center gap-2 text-center"
@@ -29,17 +31,67 @@ const PipelineStage: React.FC<{
         {icon}
       </div>
       <span className="text-sm font-semibold">{name}</span>
-    </motion.div>
+    </MotionDiv>
   );
 };
 
 
 const AutomationDashboardPage: React.FC = () => {
-    const { isAutomationRunning, startAutomation, stopAutomation, automationLogs } = useAppContext();
     const { settings } = useSettings();
+    const [isRunning, setIsRunning] = useState(false);
+    const [logs, setLogs] = useState<AutomationLog[]>([]);
+    const [isLoading, setIsLoading] = useState(false); // For button clicks
+    const [error, setError] = useState<string | null>(null);
 
-    const handleStart = () => {
-        startAutomation(settings.automationInterval, settings.defaultNiche);
+    const fetchStatus = useCallback(async () => {
+        try {
+            const [statusRes, logsRes] = await Promise.all([
+                fetch('http://localhost:3010/api/automation/status'),
+                fetch('http://localhost:3010/api/automation/logs'),
+            ]);
+            if (statusRes.ok) {
+                const statusData = await statusRes.json();
+                setIsRunning(statusData.isRunning);
+            }
+            if (logsRes.ok) {
+                const logsData = await logsRes.json();
+                setLogs(logsData);
+            }
+        } catch (e) {
+            setError("Failed to connect to the automation engine. Is the server running?");
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 5000); // Poll every 5 seconds
+        return () => clearInterval(interval);
+    }, [fetchStatus]);
+
+    const handleStart = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const res = await fetch('http://localhost:3010/api/automation/start', { method: 'POST' });
+            if (!res.ok) throw new Error(await res.json().then(d => d.error));
+            await fetchStatus();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to start automation');
+        }
+        setIsLoading(false);
+    };
+
+    const handleStop = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const res = await fetch('http://localhost:3010/api/automation/stop', { method: 'POST' });
+            if (!res.ok) throw new Error(await res.json().then(d => d.error));
+            await fetchStatus();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to stop automation');
+        }
+        setIsLoading(false);
     };
 
     const getLogColorClass = (type: 'info' | 'success' | 'error') => {
@@ -50,27 +102,29 @@ const AutomationDashboardPage: React.FC = () => {
         }
     };
 
-    // FIX: Explicitly type the return value of useMemo to prevent TypeScript from widening the status types to 'string'.
     const pipelineStatus = useMemo<{
         discovery: PipelineStatusValue;
         drafting: PipelineStatusValue;
         ready: PipelineStatusValue;
     }>(() => {
-        if (!isAutomationRunning || automationLogs.length === 0) {
+        if (!isRunning || logs.length === 0) {
             return { discovery: 'pending', drafting: 'pending', ready: 'pending' };
         }
-        const hasFoundIdea = automationLogs.some(log => log.message.includes("Found new idea"));
-        const hasGeneratedPost = automationLogs.some(log => log.message.includes("Successfully generated blog post"));
+        const hasFoundIdea = logs.some(log => log.message.includes("Found new items"));
+        const hasGeneratedPost = logs.some(log => log.message.includes("Successfully created draft"));
+        const hasFinished = logs.some(log => log.message.includes("Successfully published")); // Assuming publish step exists
 
-        if (hasGeneratedPost) {
+        if (hasFinished) {
             return { discovery: 'complete', drafting: 'complete', ready: 'complete' };
+        }
+        if (hasGeneratedPost) {
+            return { discovery: 'complete', drafting: 'complete', ready: 'active' }; // Ready to publish
         }
         if (hasFoundIdea) {
             return { discovery: 'complete', drafting: 'active', ready: 'pending' };
         }
-        // If it's running but hasn't found an idea yet.
         return { discovery: 'active', drafting: 'pending', ready: 'pending' };
-    }, [automationLogs, isAutomationRunning]);
+    }, [logs, isRunning]);
     
     return (
         <div className="max-w-4xl mx-auto py-8">
@@ -84,8 +138,8 @@ const AutomationDashboardPage: React.FC = () => {
             </div>
 
             <AnimatePresence>
-                {isAutomationRunning && (
-                     <motion.div 
+                {isRunning && (
+                     <MotionDiv 
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
@@ -99,7 +153,7 @@ const AutomationDashboardPage: React.FC = () => {
                             <div className={`flex-grow h-1 rounded-full mt-8 mx-4 transition-colors duration-500 ${pipelineStatus.ready !== 'pending' ? 'bg-green-500' : 'bg-slate-700'}`}></div>
                              <PipelineStage name="Ready" status={pipelineStatus.ready} icon={<RocketIcon />} />
                         </div>
-                    </motion.div>
+                    </MotionDiv>
                 )}
             </AnimatePresence>
             
@@ -109,29 +163,30 @@ const AutomationDashboardPage: React.FC = () => {
                         <RocketIcon />
                         <div>
                             <h3 className="text-xl font-bold text-white">Content Engine Status</h3>
-                            <p className={`font-semibold ${isAutomationRunning ? 'text-green-400' : 'text-yellow-400'}`}>
-                                {isAutomationRunning ? 'Running' : 'Stopped'}
+                            <p className={`font-semibold ${isRunning ? 'text-green-400' : 'text-yellow-400'}`}>
+                                {isRunning ? 'Running' : 'Stopped'}
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <button 
                             onClick={handleStart} 
-                            disabled={isAutomationRunning}
+                            disabled={isRunning || isLoading}
                             className="flex items-center gap-2 bg-green-600/80 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
                         >
-                            <PlayIcon /> Start
+                            {isLoading && !isRunning ? <Loader /> : <PlayIcon />} Start
                         </button>
                         <button 
-                            onClick={stopAutomation} 
-                            disabled={!isAutomationRunning}
+                            onClick={handleStop} 
+                            disabled={!isRunning || isLoading}
                             className="flex items-center gap-2 bg-red-600/80 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors"
                         >
-                            <StopIcon /> Stop
+                             {isLoading && isRunning ? <Loader /> : <StopIcon />} Stop
                         </button>
                     </div>
                 </div>
-                 {isAutomationRunning && (
+                {error && <p className="text-red-400 text-center mt-4">{error}</p>}
+                {isRunning && (
                     <div className="mt-4 pt-4 border-t border-white/10 text-sm text-slate-300 text-center">
                         <p>The engine is running for the niche "<strong className="text-cyan-400">{settings.defaultNiche}</strong>" and will check for new content ideas every <strong className="text-cyan-400">{settings.automationInterval / 60000} minutes</strong>.</p>
                     </div>
@@ -141,9 +196,9 @@ const AutomationDashboardPage: React.FC = () => {
             <div className="bg-slate-900/40 backdrop-blur-lg border border-white/10 p-6 rounded-2xl shadow-lg">
                  <h3 className="text-2xl font-bold text-white mb-4 font-oswald">Activity Log</h3>
                  <div className="h-96 overflow-y-auto bg-black/30 rounded-lg p-4 font-mono text-sm space-y-2 flex flex-col-reverse">
-                    {automationLogs.length > 0 ? automationLogs.map((log, index) => (
+                    {logs.length > 0 ? logs.map((log, index) => (
                         <p key={index} className="whitespace-pre-wrap">
-                            <span className="text-slate-500 mr-2">{log.timestamp}</span>
+                            <span className="text-slate-500 mr-2">{new Date(log.timestamp).toLocaleTimeString()}</span>
                             <span className={getLogColorClass(log.type)}>{log.message}</span>
                         </p>
                     )) : (

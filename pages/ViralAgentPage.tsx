@@ -13,9 +13,11 @@ import { useAppContext } from "../context/AppContext";
 import { useSettings } from "../context/SettingsContext";
 import { motion, AnimatePresence } from "framer-motion";
 
+const MotionDiv = motion.div;
+const MotionButton = motion.button;
+
 const PLATFORMS = [
   { id: "google", name: "Google Trends" },
-  { id: "twitter", name: "Twitter" },
   { id: "youtube", name: "YouTube" },
   { id: "tiktok", name: "TikTok" },
 ];
@@ -51,7 +53,7 @@ const ContentIdeaCard: React.FC<ContentIdeaCardProps> = ({ idea }) => {
   };
 
   return (
-    <motion.div
+    <MotionDiv
       whileHover={{ y: -5 }}
       transition={{ type: "spring", stiffness: 400, damping: 10 }}
       className="bg-slate-900/40 backdrop-blur-lg rounded-2xl shadow-lg p-6 border border-white/10 hover:border-cyan-500/50 transition-colors duration-300 flex flex-col group h-full"
@@ -64,13 +66,10 @@ const ContentIdeaCard: React.FC<ContentIdeaCardProps> = ({ idea }) => {
           {idea.source}
         </span>
       </div>
-
       <h3 className="text-xl font-bold text-white mb-3 flex-grow group-hover:text-cyan-400 transition-colors">
         {idea.title}
       </h3>
-
       <p className="text-slate-300 text-sm mb-4">{idea.brief}</p>
-
       <div className="mb-4">
         <h4 className="text-xs font-bold text-slate-400 uppercase mb-2">
           Keywords
@@ -86,7 +85,6 @@ const ContentIdeaCard: React.FC<ContentIdeaCardProps> = ({ idea }) => {
           ))}
         </div>
       </div>
-
       <div className="mt-auto pt-4 border-t border-white/10 flex items-center gap-3">
         <button
           onClick={handleCreateBlog}
@@ -108,13 +106,14 @@ const ContentIdeaCard: React.FC<ContentIdeaCardProps> = ({ idea }) => {
           Generate Video
         </button>
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 };
 
 const ViralAgentPage: React.FC = () => {
   const { settings } = useSettings();
   const [niche, setNiche] = useState(settings.defaultNiche || "");
+  const [geo, setGeo] = useState('US');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([
     "google",
     "youtube",
@@ -123,28 +122,20 @@ const ViralAgentPage: React.FC = () => {
   const [progressMessage, setProgressMessage] = useState("");
   const [results, setResults] = useState<ContentIdea[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Load previous state (client-side only)
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const savedStateJSON = window.localStorage.getItem(AGENT_STATE_KEY);
       if (!savedStateJSON) return;
-
-      const savedState = JSON.parse(savedStateJSON) as {
-        niche?: string;
-        results?: ContentIdea[];
-      };
-
+      const savedState = JSON.parse(savedStateJSON);
       if (!niche && savedState.niche) setNiche(savedState.niche);
-      if (savedState.results && Array.isArray(savedState.results)) {
-        setResults(savedState.results);
-      }
+      if (savedState.results) setResults(savedState.results);
     } catch (e) {
-      console.error("Failed to load viral agent state from localStorage", e);
+      console.error("Failed to load viral agent state", e);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [niche]);
 
   const handlePlatformChange = (platformId: string) => {
     setSelectedPlatforms((prev) =>
@@ -159,35 +150,30 @@ const ViralAgentPage: React.FC = () => {
       setError("Please define your niche and select at least one platform.");
       return;
     }
-
     setIsLoading(true);
     setError(null);
-    setResults([]);
-    setProgressMessage("");
+    setSuccessMessage(null);
+    setProgressMessage("Dispatching AI agent to the discovery queue...");
 
     try {
-      const agentResults = await runViralAgent(
-        niche,
-        selectedPlatforms,
-        setProgressMessage
-      );
-      setResults(agentResults);
+        const agentResponse = await runViralAgent(
+            niche,
+            selectedPlatforms,
+            geo,
+            setProgressMessage
+        );
+        // Since the backend is now async, we show a success message that the job was queued.
+        setSuccessMessage(agentResponse.message);
+        setResults([]); // Clear old results
 
-      if (typeof window !== "undefined") {
-        try {
-          const stateToSave = { niche, results: agentResults };
-          window.localStorage.setItem(
-            AGENT_STATE_KEY,
-            JSON.stringify(stateToSave)
-          );
-        } catch (e) {
-          console.error("Failed to save viral agent state to localStorage", e);
+        if (typeof window !== "undefined") {
+            try {
+                window.localStorage.setItem(AGENT_STATE_KEY, JSON.stringify({ niche, results: [] }));
+            } catch (e) { console.error("Failed to save viral agent state", e); }
         }
-      }
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "An unknown error occurred.";
-      setError(`Agent failed: ${message}`);
+      const message = e instanceof Error ? e.message : "An unknown error occurred.";
+      setError(`Agent dispatch failed: ${message}`);
     } finally {
       setIsLoading(false);
       setProgressMessage("");
@@ -196,16 +182,9 @@ const ViralAgentPage: React.FC = () => {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 },
-  };
+  const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -214,112 +193,81 @@ const ViralAgentPage: React.FC = () => {
           Viral Content Agent
         </h2>
         <p className="text-lg text-slate-400">
-          Let AI find trending topics and generate your next viral hit.
+          Dispatch an AI agent to find trending topics for your niche.
         </p>
       </div>
 
       <div className="bg-slate-900/40 backdrop-blur-lg p-6 md:p-8 rounded-2xl shadow-2xl border border-white/10 mb-12">
         <h3 className="text-2xl font-bold text-white mb-6">Configuration</h3>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <label
-              htmlFor="niche-input"
-              className="block text-sm font-medium text-slate-300 mb-2"
-            >
-              What is your content niche?
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label htmlFor="niche-input" className="block text-sm font-medium text-slate-300 mb-2">
+              Content Niche
             </label>
             <input
-              type="text"
-              id="niche-input"
-              value={niche}
-              onChange={(e) => setNiche(e.target.value)}
-              placeholder="e.g., AI technology, home cooking recipes, indie gaming"
-              className="w-full p-3 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-              disabled={isLoading}
+              type="text" id="niche-input" value={niche} onChange={(e) => setNiche(e.target.value)}
+              placeholder="e.g., AI technology, home cooking recipes"
+              className="w-full p-3 bg-slate-800/50 border border-slate-700 rounded-lg" disabled={isLoading}
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Analyze which platforms?
+            <label htmlFor="geo-select" className="block text-sm font-medium text-slate-300 mb-2">
+              Target Country
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2">
+            <select id="geo-select" value={geo} onChange={(e) => setGeo(e.target.value)} className="w-full p-3 bg-slate-800/50 border border-slate-700 rounded-lg" disabled={isLoading}>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="CA">Canada</option>
+                <option value="AU">Australia</option>
+                <option value="WW">Worldwide</option>
+            </select>
+          </div>
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Analyze Platforms
+            </label>
+            <div className="flex flex-wrap gap-2">
               {PLATFORMS.map((platform) => (
                 <button
-                  key={platform.id}
-                  onClick={() => handlePlatformChange(platform.id)}
-                  disabled={isLoading}
-                  className={`p-2 w-full text-sm font-semibold rounded-md transition-colors disabled:opacity-50 ${
-                    selectedPlatforms.includes(platform.id)
-                      ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500"
-                      : "bg-slate-700/50 text-slate-300 hover:bg-slate-700"
-                  }`}
+                  key={platform.id} onClick={() => handlePlatformChange(platform.id)} disabled={isLoading}
+                  className={`p-2 px-4 text-sm font-semibold rounded-md transition-colors disabled:opacity-50 ${ selectedPlatforms.includes(platform.id) ? "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500" : "bg-slate-700/50 text-slate-300 hover:bg-slate-700" }`}
                 >
                   {platform.name}
                 </button>
               ))}
             </div>
-          </div>
         </div>
 
-        {error && (
-          <p className="text-red-400 text-sm mt-4 text-center">{error}</p>
-        )}
+        {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
+        {successMessage && <p className="text-green-400 text-sm mt-4 text-center">{successMessage}</p>}
 
         <div className="mt-6 border-t border-white/10 pt-6">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRunAgent}
-            disabled={isLoading || !niche.trim() || selectedPlatforms.length === 0}
+          <MotionButton
+            whileTap={{ scale: 0.95 }} onClick={handleRunAgent} disabled={isLoading || !niche.trim() || selectedPlatforms.length === 0}
             className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 bg-cyan-500 text-black font-bold py-3 px-4 rounded-lg hover:bg-cyan-400 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 disabled:scale-100 shadow-[0_0_15px_rgba(var(--cyan-glow),0.4)] hover:shadow-[0_0_25px_rgba(var(--cyan-glow),0.6)] disabled:shadow-none"
           >
             {isLoading ? <Loader /> : <MagicWandIcon />}
-            <span>{isLoading ? "Agent is Working..." : "Find Viral Content"}</span>
-          </motion.button>
+            <span>{isLoading ? progressMessage || "Agent is Working..." : "Find Viral Content"}</span>
+          </MotionButton>
         </div>
       </div>
 
       <AnimatePresence>
-        {isLoading && (
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <h3 className="text-2xl font-bold text-white mb-4">
-              Analyzing Trends...
-            </h3>
-            <p className="text-cyan-300 font-mono animate-pulse">
-              {progressMessage}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {results.length > 0 && (
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            variants={containerVariants}
-          >
+          <MotionDiv initial="hidden" animate="visible" exit="hidden" variants={containerVariants}>
             <h3 className="text-3xl font-bold text-white mb-6 text-center font-oswald">
-              Content Ideas
+              Last Known Ideas
             </h3>
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8"
-              variants={containerVariants}
-            >
+            <MotionDiv className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8" variants={containerVariants}>
               {results.map((idea) => (
-                <motion.div key={idea.id} variants={itemVariants}>
+                <MotionDiv key={idea.id} variants={itemVariants}>
                   <ContentIdeaCard idea={idea} />
-                </motion.div>
+                </MotionDiv>
               ))}
-            </motion.div>
-          </motion.div>
+            </MotionDiv>
+          </MotionDiv>
         )}
       </AnimatePresence>
     </div>
