@@ -1,20 +1,19 @@
 // server/routes/clips.ts
 import express from "express";
-// FIX: Corrected module imports to point to the right location.
+import { Redis } from "ioredis"; // Ensure ioredis types are installed
+import { Queue } from "bull"; // Adjust based on your queue library (e.g., Bull)
 import { redisConnection, automationQueue as automationQ } from "../queues";
 
 export const router = express.Router();
 
-// FIX: Define missing constants that were previously in a non-existent file.
 const CHANNEL = "clipyube:events";
-const INBOX = (t = "default") => `clipyube:${t}:inbox`;
+const INBOX = (t: string = "default") => `clipyube:${t}:inbox`;
 
 // Reuse a single Redis client
-// FIX: Use the imported redisConnection instance directly instead of calling a non-existent function.
-const r = redisConnection;
+const r: Redis = redisConnection;
 (async () => {
   try {
-    if (!r.isOpen) await r.connect();
+    await r.connect(); // Connect directly without isOpen check
   } catch (err) {
     // Don't crash the process; log and continue (routes will 500 if used)
     console.error("[clips] Redis connect failed:", err);
@@ -26,7 +25,6 @@ const r = redisConnection;
  * Body: { url: string; tenant?: string }
  * Push a clip URL into the inbox and nudge the automation queue.
  */
-// FIX: Added explicit Request/Response types to handler to resolve type conflicts.
 router.post("/ingest", async (req: express.Request, res: express.Response) => {
   const { url, tenant = "default" } = (req.body ?? {}) as { url?: string; tenant?: string };
   if (!url || typeof url !== "string") {
@@ -34,9 +32,9 @@ router.post("/ingest", async (req: express.Request, res: express.Response) => {
   }
 
   try {
-    await r.lPush(INBOX(tenant), url);
+    await r.lpush(INBOX(tenant), url); // Use lpush instead of lPush
     // Nudge the automation worker to process inbox now
-    await automationQ.add("tick", { tenant }, { removeOnComplete: 1000, removeOnFail: 100 });
+    await (automationQ as Queue).add("tick", { tenant }, { removeOnComplete: 1000, removeOnFail: 100 });
 
     return res.status(202).json({ ok: true, message: "Clip ingested and queued for processing." });
   } catch (error: any) {
@@ -49,7 +47,6 @@ router.post("/ingest", async (req: express.Request, res: express.Response) => {
  * GET /api/clips/logs/:tenant
  * Server-Sent Events stream for real-time logs filtered by tenant.
  */
-// FIX: Added explicit Request/Response types to handler to resolve type conflicts.
 router.get("/logs/:tenant", async (req: express.Request, res: express.Response) => {
   const { tenant } = req.params;
 
@@ -66,9 +63,9 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
   if (typeof res.flushHeaders === "function") res.flushHeaders();
 
   // Create a dedicated sub connection
-  const sub = r.duplicate();
+  const sub: Redis = r.duplicate();
   try {
-    if (!sub.isOpen) await sub.connect();
+    await sub.connect(); // Connect directly without isOpen check
   } catch (err) {
     console.error("[clips] SSE subscriber connect failed:", err);
     res.status(500).end();
@@ -78,7 +75,7 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
   // Emit a hello event so clients know we're live
   res.write(`event: hello\ndata: ${JSON.stringify({ tenant, ok: true })}\n\n`);
 
-  const onMessage = (message: string) => {
+  const onMessage = (message: string, channel: string) => {
     try {
       const log = JSON.parse(message) as { tenant?: string } & Record<string, unknown>;
       if (!tenant || log.tenant === tenant) {
@@ -90,7 +87,7 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
   };
 
   try {
-    await sub.subscribe(CHANNEL, onMessage);
+    await sub.subscribe(CHANNEL, onMessage); // Correct subscribe signature
   } catch (err) {
     console.error("[clips] Subscribe failed:", err);
     res.status(500).end();
@@ -118,7 +115,6 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
   
   // The 'close' event on the request object is the most reliable way
   // to detect when the client has disconnected.
-  // FIX: Explicitly typing 'req' as express.Request provides the '.on' method, fixing the error.
   req.on("close", cleanup);
 });
 

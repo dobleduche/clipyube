@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, generateVideoWithVeo } from '../services/geminiService';
 import { generateVideoWithRunway } from '../services/runwayService';
@@ -91,18 +87,13 @@ const creativeFilters = [
     { name: 'Scanlines', value: 'scanlines', type: 'canvas' },
 ];
 
-// FIX: Define a specific type for filter objects to prevent the 'type' property from being
-// widened to a generic 'string', ensuring it matches the expected '"css" | "canvas"' union type
-// required by the `handleFilterChange` function. This resolves the TypeScript error.
 interface EditorFilter {
     name: string;
     value: string;
     type: 'css' | 'canvas';
 }
 
-// FIX: Explicitly cast the combined filter arrays to EditorFilter[] to satisfy TypeScript.
-// This prevents type widening of the 'type' property to a generic 'string'.
-const allFilters: EditorFilter[] = [...filters, ...presets, ...creativeFilters] as EditorFilter[];
+const allFilters: EditorFilter[] = [...filters, ...presets, ...creativeFilters] as any;
 
 
 const defaultAdjustments = {
@@ -222,10 +213,8 @@ const defaultEffects = {
     shadow: { color: 'rgba(0,0,0,0.5)', blur: 0, offsetX: 0, offsetY: 0 },
 };
 
-// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
 const MotionImg = motion.img;
 
-// FIX: Export the component as a named export.
 export const ImageEditor: React.FC = () => {
     const { automation, clearAutomation } = useAppContext();
     const { settings } = useSettings();
@@ -370,11 +359,8 @@ export const ImageEditor: React.FC = () => {
     }, [automation, clearAutomation]);
 
 
-    // FIX: Refactored `updateHistory` to be more robust and type-safe.
     const updateHistory = useCallback((newState: Partial<HistoryState>) => {
         const currentState = history[currentHistoryIndex];
-        // This guard prevents updates if there's no active state, which should not
-        // happen if UI controls are disabled correctly, but it's a good safeguard.
         if (!currentState) {
             console.error("Attempted to update history with no current state. This is a bug.");
             return;
@@ -743,6 +729,36 @@ export const ImageEditor: React.FC = () => {
 
         } catch (err) {
             setError(getFriendlyErrorMessage(err, 'Background Removal'));
+        } finally {
+            setIsLoading(false);
+            setLoadingMessage('');
+        }
+    }, [currentHistoryState, bakeAndCommitEffects, updateHistory]);
+
+    const handleUpscale = useCallback(async () => {
+        if (!currentHistoryState?.imageFile) {
+            setError('Please upload an image first.');
+            return;
+        }
+
+        setLoadingMessage('Upscaling image (2x)...');
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const bakedState = await bakeAndCommitEffects();
+            if (!bakedState || !bakedState.imageFile) {
+                throw new Error("Could not prepare image for upscaling.");
+            }
+            
+            const base64Data = await fileToBase64(bakedState.imageFile);
+            const resultUrl = await upscaleImage(base64Data, bakedState.imageFile.type, 2); // Hardcode 2x for now
+            const resultFile = await dataUrlToFile(resultUrl, 'upscaled-image.png');
+            
+            updateHistory({ imageUrl: resultUrl, imageFile: resultFile });
+
+        } catch (err) {
+            setError(getFriendlyErrorMessage(err, 'Image Upscaling'));
         } finally {
             setIsLoading(false);
             setLoadingMessage('');
@@ -1140,7 +1156,6 @@ export const ImageEditor: React.FC = () => {
                 </div>
                 <div ref={imageContainerRef} className="relative w-full aspect-square bg-black/30 rounded-2xl overflow-hidden flex items-center justify-center">
                     <AnimatePresence>
-                         {/* FIX: Used MotionImg constant to ensure TypeScript correctly recognizes Framer Motion props. */}
                          <MotionImg
                             ref={mainImageRef}
                             key={currentHistoryState.id}
@@ -1215,25 +1230,106 @@ export const ImageEditor: React.FC = () => {
 
                 <div className="bg-slate-900/40 backdrop-blur-lg border border-white/10 p-4 rounded-2xl shadow-lg">
                     <h4 className="text-lg font-semibold text-slate-200 mb-3 text-center">Tools</h4>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                         <button onClick={() => toggleTool('filters')} className={toolButtonClasses('filters')}>
                             <FilterIcon />
                             <span className="mt-1">Filters</span>
                         </button>
-                        <button onClick={() => toggleTool('video')} className={toolButtonClasses('video')}>
-                            <VideoIcon />
-                             <span className="mt-1">Video</span>
+                        <button onClick={() => toggleTool('adjustments')} className={toolButtonClasses('adjustments')}>
+                            <AdjustmentsIcon />
+                            <span className="mt-1">Adjust</span>
                         </button>
                          <button onClick={() => toggleTool('brush')} className={toolButtonClasses('brush')}>
                             <BrushIcon />
                              <span className="mt-1">Brush</span>
                         </button>
+                        <button onClick={() => toggleTool('video')} className={toolButtonClasses('video')}>
+                            <VideoIcon />
+                             <span className="mt-1">Video</span>
+                        </button>
                         <button onClick={handleRemoveBackground} disabled={isLoading} className="p-2 rounded-lg transition-colors duration-200 flex flex-col items-center justify-center text-xs w-full h-16 text-center bg-slate-700/50 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
                             {isLoading && loadingMessage.includes('background') ? <Loader/> : <BackgroundEraserIcon />}
                             <span className="mt-1">{isLoading && loadingMessage.includes('background') ? 'Erasing...' : 'BG Erase'}</span>
                         </button>
+                        <button onClick={handleUpscale} disabled={isLoading} className="p-2 rounded-lg transition-colors duration-200 flex flex-col items-center justify-center text-xs w-full h-16 text-center bg-slate-700/50 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading && loadingMessage.includes('Upscaling') ? <Loader/> : <UpscaleIcon />}
+                            <span className="mt-1">{isLoading && loadingMessage.includes('Upscaling') ? 'Upscaling...' : 'Upscale 2x'}</span>
+                        </button>
                     </div>
                 </div>
+
+                <ToolOptionsPanel title="Filters" icon={<FilterIcon />} isOpen={toolIsActive('filters')} onToggle={() => toggleTool('filters')}>
+                    <div className="grid grid-cols-3 gap-2">
+                        {allFilters.map(filter => (
+                            <button key={filter.name} onClick={() => handleFilterChange(filter)} className="text-center group">
+                                <div className={`w-full aspect-square rounded-md bg-cover bg-center transition-all duration-200 group-hover:scale-105 ${currentHistoryState.activeFilter === filter.value ? 'ring-2 ring-cyan-400' : ''}`} style={{backgroundImage: `url(${currentHistoryState.imageUrl})`, filter: filter.type === 'css' ? filter.value : 'none'}}></div>
+                                <span className="text-xs mt-1 block">{filter.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </ToolOptionsPanel>
+
+                <ToolOptionsPanel title="Adjustments" icon={<AdjustmentsIcon />} isOpen={toolIsActive('adjustments')} onToggle={() => toggleTool('adjustments')}>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2 flex justify-between">
+                                <span>Brightness</span>
+                                <span className="font-mono text-xs">{((transientAdjustments.brightness - 1) * 100).toFixed(0)}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.01"
+                                value={transientAdjustments.brightness}
+                                onChange={(e) => handleAdjustmentChange('brightness', parseFloat(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2 flex justify-between">
+                                <span>Contrast</span>
+                                <span className="font-mono text-xs">{((transientAdjustments.contrast - 1) * 100).toFixed(0)}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.01"
+                                value={transientAdjustments.contrast}
+                                onChange={(e) => handleAdjustmentChange('contrast', parseFloat(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2 flex justify-between">
+                                <span>Saturation</span>
+                                <span className="font-mono text-xs">{((transientAdjustments.saturation - 1) * 100).toFixed(0)}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.01"
+                                value={transientAdjustments.saturation}
+                                onChange={(e) => handleAdjustmentChange('saturation', parseFloat(e.target.value))}
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="pt-2 border-t border-white/10 flex justify-end">
+                            <button 
+                                onClick={() => {
+                                    const newAdjustments = defaultAdjustments;
+                                    setTransientAdjustments(newAdjustments);
+                                    debouncedUpdateHistoryForAdjustments(newAdjustments);
+                                }}
+                                className="text-xs text-slate-400 hover:text-cyan-400 font-semibold"
+                            >
+                                Reset Adjustments
+                            </button>
+                        </div>
+                    </div>
+                </ToolOptionsPanel>
 
                 <ToolOptionsPanel title="Brush Tool" icon={<BrushIcon />} isOpen={toolIsActive('brush')} onToggle={() => toggleTool('brush')}>
                     <div className="flex items-center justify-end gap-2 mb-2 pb-2 border-b border-white/10">
@@ -1348,17 +1444,6 @@ export const ImageEditor: React.FC = () => {
                          </button>
                          {generatedVideoUrl && <video src={generatedVideoUrl} controls className="w-full mt-4 rounded-lg" />}
                      </div>
-                </ToolOptionsPanel>
-                
-                <ToolOptionsPanel title="Filters" icon={<FilterIcon />} isOpen={toolIsActive('filters')} onToggle={() => toggleTool('filters')}>
-                    <div className="grid grid-cols-3 gap-2">
-                        {allFilters.map(filter => (
-                            <button key={filter.name} onClick={() => handleFilterChange(filter)} className="text-center group">
-                                <div className={`w-full aspect-square rounded-md bg-cover bg-center transition-all duration-200 group-hover:scale-105 ${currentHistoryState.activeFilter === filter.value ? 'ring-2 ring-cyan-400' : ''}`} style={{backgroundImage: `url(${currentHistoryState.imageUrl})`, filter: filter.type === 'css' ? filter.value : 'none'}}></div>
-                                <span className="text-xs mt-1 block">{filter.name}</span>
-                            </button>
-                        ))}
-                    </div>
                 </ToolOptionsPanel>
             </div>
         </div>

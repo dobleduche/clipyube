@@ -1,16 +1,28 @@
+
 import OpenAI from 'openai';
 
-if (!process.env.OPENAI_API_KEY) {
-    console.warn("OPENAI_API_KEY environment variable not set. OpenAI adapter will not work.");
-}
+let openai: OpenAI | null = null;
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy-initialization of the OpenAI client.
+// This prevents the server from crashing on startup if the key is missing.
+const getOpenAiClient = (): OpenAI => {
+    if (openai) {
+        return openai; // Return cached client
+    }
+    
+    if (process.env.OPENAI_API_KEY) {
+        openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        return openai;
+    }
+    
+    // If we reach here, the key is missing.
+    throw new Error("OpenAI API client is not initialized. Please ensure the OPENAI_API_KEY environment variable is set correctly on the server.");
+};
 
 export const generateTextWithOpenAI = async (prompt: string): Promise<string> => {
     try {
-        const response = await openai.chat.completions.create({
+        const client = getOpenAiClient(); // This will initialize or throw
+        const response = await client.chat.completions.create({
             model: 'gpt-4-turbo',
             messages: [{ role: 'user', content: prompt }],
         });

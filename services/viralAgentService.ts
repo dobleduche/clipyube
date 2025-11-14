@@ -22,7 +22,7 @@ export const runViralAgent = async (
 ): Promise<{ message: string }> => {
     onProgress("Dispatching agent to the discovery queue...");
 
-    const response = await fetch('http://localhost:3010/api/discovery/run', {
+    const response = await fetch('/api/discovery/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ niche, platforms, geo }),

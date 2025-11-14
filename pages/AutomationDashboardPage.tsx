@@ -46,8 +46,8 @@ const AutomationDashboardPage: React.FC = () => {
     const fetchStatus = useCallback(async () => {
         try {
             const [statusRes, logsRes] = await Promise.all([
-                fetch('http://localhost:3010/api/automation/status'),
-                fetch('http://localhost:3010/api/automation/logs'),
+                fetch('/api/automation/status'),
+                fetch('/api/automation/logs'),
             ]);
             if (statusRes.ok) {
                 const statusData = await statusRes.json();
@@ -72,7 +72,7 @@ const AutomationDashboardPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:3010/api/automation/start', { method: 'POST' });
+            const res = await fetch('/api/automation/start', { method: 'POST' });
             if (!res.ok) throw new Error(await res.json().then(d => d.error));
             await fetchStatus();
         } catch (e) {
@@ -85,7 +85,7 @@ const AutomationDashboardPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('http://localhost:3010/api/automation/stop', { method: 'POST' });
+            const res = await fetch('/api/automation/stop', { method: 'POST' });
             if (!res.ok) throw new Error(await res.json().then(d => d.error));
             await fetchStatus();
         } catch (e) {

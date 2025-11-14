@@ -6,19 +6,16 @@ import { discoveryQueue, scheduleAutomation, removeAutomationSchedule } from '..
 export const router = express.Router();
 
 // GET /api/automation/status
-// FIX: Use express.Request and express.Response for correct types.
 router.get('/status', (_req: express.Request, res: express.Response) => {
     res.json(db.getAutomationState());
 });
 
 // GET /api/automation/logs
-// FIX: Use express.Request and express.Response for correct types.
 router.get('/logs', (_req: express.Request, res: express.Response) => {
     res.json(db.getAutomationState().logs);
 });
 
 // POST /api/automation/start
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/start', async (_req: express.Request, res: express.Response) => {
     const state = db.getAutomationState();
     if (state.isRunning) {
@@ -38,7 +35,6 @@ router.post('/start', async (_req: express.Request, res: express.Response) => {
 });
 
 // POST /api/automation/stop
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/stop', async (_req: express.Request, res: express.Response) => {
     const state = db.getAutomationState();
     if (!state.isRunning) {
@@ -53,13 +49,11 @@ router.post('/stop', async (_req: express.Request, res: express.Response) => {
 });
 
 // GET /api/automation/settings
-// FIX: Use express.Request and express.Response for correct types.
 router.get('/settings', (_req: express.Request, res: express.Response) => {
     res.json(db.getSettings());
 });
 
 // POST /api/automation/settings
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/settings', (req: express.Request, res: express.Response) => {
     const newSettings = req.body;
     const updatedSettings = db.updateSettings(newSettings);

@@ -52,7 +52,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const response = await fetch('http://localhost:3010/api/automation/settings');
+                const response = await fetch('/api/automation/settings');
                 if (response.ok) {
                     const serverSettings = await response.json();
                     setSettings(serverSettings);
@@ -68,7 +68,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     const debouncedSaveSettings = useDebouncedCallback(async (newSettings: Settings) => {
         try {
-            await fetch('http://localhost:3010/api/automation/settings', {
+            await fetch('/api/automation/settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newSettings),

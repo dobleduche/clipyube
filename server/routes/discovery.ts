@@ -6,7 +6,6 @@ export const router = express.Router();
 
 // POST /api/discovery/run
 // This endpoint now enqueues a job instead of running the discovery synchronously.
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/run', async (req: express.Request, res: express.Response) => {
     try {
         const { niche, platforms, geo = 'US' } = req.body;

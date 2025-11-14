@@ -14,7 +14,6 @@ interface ToolOptionsPanelProps {
   onCancel?: () => void;
 }
 
-// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
 const MotionDiv = motion.div;
 
 const ToolOptionsPanel: React.FC<ToolOptionsPanelProps> = ({ 
@@ -29,7 +28,7 @@ const ToolOptionsPanel: React.FC<ToolOptionsPanelProps> = ({
     onCancel
 }) => {
   return (
-    <div className="w-full bg-slate-900/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden transition-all duration-300">
+    <div className="w-full bg-slate-900/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-lg overflow-hidden">
       <button 
         onClick={onToggle} 
         className="w-full flex items-center justify-between p-3 text-left hover:bg-white/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
@@ -50,7 +49,6 @@ const ToolOptionsPanel: React.FC<ToolOptionsPanelProps> = ({
       </button>
       <AnimatePresence initial={false}>
         {isOpen && (
-            // FIX: Used MotionDiv constant to ensure TypeScript correctly recognizes Framer Motion props.
             <MotionDiv
                 id={`panel-content-${title.replace(/\s/g, '-')}`}
                 key="content"
@@ -61,7 +59,7 @@ const ToolOptionsPanel: React.FC<ToolOptionsPanelProps> = ({
                 open: { opacity: 1, height: 'auto' },
                 collapsed: { opacity: 0, height: 0 },
                 }}
-                transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                transition={{ type: 'spring', stiffness: 400, damping: 40 }}
                 className="overflow-hidden"
             >
                 <div className="p-4 pt-0">

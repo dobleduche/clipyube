@@ -16,7 +16,6 @@ interface HeroProps {
   spec: HeroSpec;
 }
 
-// FIX: Create constants for motion components to help with TypeScript type inference issues.
 const MotionH1 = motion.h1;
 const MotionP = motion.p;
 const MotionA = motion.a;
@@ -34,7 +33,6 @@ const Hero: React.FC<HeroProps> = ({ spec }) => {
   return (
     <section className="relative w-full flex items-center justify-center text-center">
       <div className="z-10 p-4 flex flex-col items-center">
-        {/* FIX: Used MotionH1 constant to ensure TypeScript correctly recognizes Framer Motion props. */}
         <MotionH1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -45,7 +43,6 @@ const Hero: React.FC<HeroProps> = ({ spec }) => {
         </MotionH1>
 
         {spec.subtitle && (
-          // FIX: Used MotionP constant to ensure TypeScript correctly recognizes Framer Motion props.
           <MotionP
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -57,7 +54,6 @@ const Hero: React.FC<HeroProps> = ({ spec }) => {
         )}
         
         {spec.cta && (
-            // FIX: Used MotionA constant to ensure TypeScript correctly recognizes Framer Motion props.
             <MotionA
                 href={spec.cta.href}
                 onClick={handleCTAClick}

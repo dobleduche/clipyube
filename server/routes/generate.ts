@@ -10,7 +10,6 @@ export const router = express.Router();
 const videoTasks: { [key: string]: any } = {};
 
 // POST /api/generate/text - Generic text generation
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/text', async (req: express.Request, res: express.Response) => {
     try {
         const { prompt } = req.body;
@@ -27,7 +26,6 @@ router.post('/text', async (req: express.Request, res: express.Response) => {
 
 // POST /api/generate/blog
 // New endpoint with server-side validation
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/blog', async (req: express.Request, res: express.Response) => {
     try {
         const { idea } = req.body;
@@ -81,7 +79,6 @@ router.post('/blog', async (req: express.Request, res: express.Response) => {
 
 
 // POST /api/generate/image
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/image', async (req: express.Request, res: express.Response) => {
     try {
         const { base64Data, mimeType, prompt, operationDescription, styleBase64, styleMimeType } = req.body;
@@ -97,7 +94,6 @@ router.post('/image', async (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/generate/video
-// FIX: Use express.Request and express.Response for correct types.
 router.post('/video', async (req: express.Request, res: express.Response) => {
     try {
         const { prompt, aspectRatio, resolution } = req.body;
@@ -126,7 +122,6 @@ router.post('/video', async (req: express.Request, res: express.Response) => {
 
 
 // GET /api/generate/video/stream/:taskId
-// FIX: Use express.Request and express.Response for correct types.
 router.get('/video/stream/:taskId', async (req: express.Request, res: express.Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];
@@ -146,7 +141,12 @@ router.get('/video/stream/:taskId', async (req: express.Request, res: express.Re
 
     try {
         const operation = await task.operationPromise;
-        const localAi = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+        // Re-initialize the client inside the long-running request to ensure it's not stale
+        // and has the correct API key, especially if keys can be rotated or changed.
+        if (!process.env.API_KEY) {
+            throw new Error("API_KEY is not configured on the server.");
+        }
+        const localAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
         sendEvent({ progress: 'Your video is in the queue. This may take a few minutes...' });
         
@@ -177,7 +177,6 @@ router.get('/video/stream/:taskId', async (req: express.Request, res: express.Re
 });
 
 // GET /api/generate/download/:taskId
-// FIX: Use express.Request and express.Response for correct types.
 router.get('/download/:taskId', async (req: express.Request, res: express.Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];

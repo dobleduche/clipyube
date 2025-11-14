@@ -1,13 +1,27 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
+let ai: GoogleGenAI | null = null;
+
 if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set. Server cannot make Gemini API calls.");
+    console.error("API_KEY environment variable not set. Server cannot make Gemini API calls. API-dependent features will fail.");
+} else {
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 const imageModel = 'gemini-2.5-flash-image';
 const proModel = 'gemini-2.5-pro';
 const videoModel = 'veo-3.1-fast-generate-preview';
+
+/**
+ * Helper function to ensure the GoogleGenAI client is initialized.
+ * Throws a user-friendly error if the API key is missing.
+ */
+const getAiClient = (): GoogleGenAI => {
+    if (!ai) {
+        throw new Error("Gemini API client is not initialized. Please ensure the API_KEY environment variable is set correctly on the server.");
+    }
+    return ai;
+};
 
 /**
  * A generic helper to call the Gemini API for image generation on the server.
@@ -21,6 +35,7 @@ export const generateImageContent = async (
   styleMimeType?: string
 ): Promise<string> => {
   try {
+    const localAi = getAiClient();
     const parts: any[] = [
         { inlineData: { data: base64Data, mimeType: mimeType } },
     ];
@@ -31,7 +46,7 @@ export const generateImageContent = async (
 
     parts.push({ text: prompt });
 
-    const response = await ai.models.generateContent({
+    const response = await localAi.models.generateContent({
       model: imageModel,
       contents: { parts },
       config: {
@@ -65,10 +80,11 @@ export const generateImageContent = async (
  * Generates text content on the server with retry logic.
  */
 export const generateTextContent = async (prompt: string, retries = 1): Promise<string> => {
+    const localAi = getAiClient();
     let lastError: Error | null = null;
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await ai.models.generateContent({
+            const response = await localAi.models.generateContent({
                 model: proModel,
                 contents: prompt,
             });
@@ -94,7 +110,8 @@ export const startVideoGeneration = async (
     resolution: '720p' | '1080p'
 ) => {
     try {
-        const operation = await ai.models.generateVideos({
+        const localAi = getAiClient();
+        const operation = await localAi.models.generateVideos({
             model: videoModel,
             prompt: prompt,
             config: {

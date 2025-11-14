@@ -58,7 +58,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const generateBlogPost = async (idea: ContentIdea): Promise<string> => {
-    const response = await fetch('http://localhost:3010/api/generate/blog', {
+    const response = await fetch('/api/generate/blog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idea }),
@@ -66,7 +66,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate blog post from server.');
+        const details = errorData.details ? ` Details: ${errorData.details.join(', ')}` : '';
+        throw new Error((errorData.error || 'Failed to generate blog post from server.') + details);
     }
     
     const { blogPost: newPost } = await response.json();

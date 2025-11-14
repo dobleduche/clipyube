@@ -15,7 +15,7 @@ function log(tenant: string, type: "info" | "success" | "error", message: string
 const INBOX = (t = "default") => `clipyube:${t}:inbox`;
 
 async function dequeueInbox(tenant: string) {
-    const url = await r.rPop(INBOX(tenant));
+    const url = await r.rpop('INBOX(tenant)');
     return url as string | null;
 }
 

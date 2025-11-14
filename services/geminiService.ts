@@ -67,7 +67,7 @@ export const generateVideoWithVeo = async (
  * @returns A promise that resolves to a BlogPost object.
  */
 export const generateBlogPost = async (idea: ContentIdea): Promise<BlogPost> => {
-    const response = await fetch('http://localhost:3010/api/generate/blog', {
+    const response = await fetch('/api/generate/blog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idea }),

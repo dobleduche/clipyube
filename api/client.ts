@@ -2,7 +2,7 @@
 // It makes fetch requests to the server, which then handles the direct
 // interaction with external services like Google Gemini.
 
-const API_BASE_URL = 'http://localhost:3010';
+const API_BASE_URL = 'api.clipyube.info';
 
 /**
  * A generic helper to call the backend's image generation endpoint.

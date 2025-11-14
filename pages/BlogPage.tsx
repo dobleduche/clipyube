@@ -19,7 +19,6 @@ interface BlogPageProps {
     slug?: string;
 }
 
-// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
 const MotionA = motion.a;
 
 const BlogPage: React.FC<BlogPageProps> = ({ posts, slug }) => {
@@ -110,7 +109,6 @@ const BlogPage: React.FC<BlogPageProps> = ({ posts, slug }) => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
                 {posts.map(post => (
-                    // FIX: Used MotionA constant to ensure TypeScript correctly recognizes Framer Motion props.
                     <MotionA
                         href={`#/blog/${post.slug}`}
                         onClick={(e) => handleNavClick(e, `#/blog/${post.slug}`)}

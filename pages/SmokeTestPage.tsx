@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import Loader from '../components/Loader';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +15,6 @@ const initialTests: Record<string, TestResult> = {
     securityChecks: { status: 'pending', message: 'Waiting to start...' },
 };
 
-// FIX: Create a constant for the motion component to help with TypeScript type inference issues.
 const MotionDiv = motion.div;
 
 const SmokeTestPage: React.FC = () => {
@@ -35,18 +32,17 @@ const SmokeTestPage: React.FC = () => {
         // --- Test 1: Backend Health Check ---
         updateTestResult('backendHealth', 'running', 'Pinging backend server...');
         try {
-            const healthResponse = await fetch('http://localhost:3010/api/health');
+            const healthResponse = await fetch('/api/health');
             if (!healthResponse.ok) throw new Error(`Server responded with status ${healthResponse.status}`);
             const healthData: unknown = await healthResponse.json();
-            // FIX: Add a type guard to safely access the 'status' property, as 'healthData' is of type 'unknown'.
-            if (typeof healthData === 'object' && healthData !== null && 'status' in healthData && (healthData as {status: unknown}).status === 'ok') {
+            // FIX: Safely access property 'status' on type 'unknown' after performing type checks.
+            if (typeof healthData === 'object' && healthData !== null && 'status' in healthData && (healthData as { status: unknown }).status === 'ok') {
                 updateTestResult('backendHealth', 'pass', 'Backend is online and healthy.');
             } else {
                 throw new Error('Backend reported an unhealthy status or returned an invalid response.');
             }
         } catch (error) {
-            // FIX: Safely access the 'message' property by checking if the caught error is an instance of Error, as 'error' is 'unknown' in a catch block.
-            const message = error instanceof Error ? error.message : 'Unknown error';
+            const message = error instanceof Error ? error.message : String(error);
             updateTestResult('backendHealth', 'fail', `Failed to connect to backend: ${message}`);
             setIsRunning(false);
             return; // Stop if backend is down
@@ -55,7 +51,7 @@ const SmokeTestPage: React.FC = () => {
         // --- Test 2: Gemini API Service Check ---
         updateTestResult('geminiApi', 'running', 'Sending test prompt to Gemini via backend...');
         try {
-            const apiResponse = await fetch('http://localhost:3010/api/generate/text', {
+            const apiResponse = await fetch('/api/generate/text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: "Health check: respond with 'OK'" }),
@@ -64,22 +60,20 @@ const SmokeTestPage: React.FC = () => {
                 let errorMsg = `API responded with status ${apiResponse.status}`;
                 try {
                     const errorData: unknown = await apiResponse.json();
-                    // FIX: Add a type guard to safely parse the error message from the backend response, as 'errorData' is of type 'unknown'.
-                    if (typeof errorData === 'object' && errorData !== null && 'error' in errorData && typeof (errorData as {error: unknown}).error === 'string') {
-                         errorMsg = `Gemini API proxy test failed: ${(errorData as {error: string}).error}`;
+                    // FIX: Safely access property 'error' on type 'unknown' after performing type checks.
+                    if (typeof errorData === 'object' && errorData !== null && 'error' in errorData && typeof (errorData as { error: unknown }).error === 'string') {
+                         errorMsg = `Gemini API proxy test failed: ${(errorData as { error: string }).error}`;
                     }
                 } catch (e) { /* ignore JSON parsing errors */ }
                 throw new Error(errorMsg);
             }
             const apiData: unknown = await apiResponse.json();
-            // FIX: Add a comprehensive type guard to validate the structure of the API response before accessing its properties.
-            if (typeof apiData !== 'object' || apiData === null || !('text' in apiData) || typeof (apiData as {text: unknown}).text !== 'string') {
+            if (typeof apiData !== 'object' || apiData === null || !('text' in apiData) || typeof apiData.text !== 'string') {
                 throw new Error('API returned an invalid response format.');
             }
             updateTestResult('geminiApi', 'pass', 'Successfully received a response from the Gemini API proxy.');
         } catch (error) {
-            // FIX: Safely access the 'message' property from the caught 'unknown' error.
-            const message = error instanceof Error ? error.message : 'Unknown error';
+            const message = error instanceof Error ? error.message : String(error);
             updateTestResult('geminiApi', 'fail', message);
         }
         
@@ -135,7 +129,6 @@ const SmokeTestPage: React.FC = () => {
                 <div className="space-y-4">
                     <AnimatePresence>
                         {Object.entries(testResults).map(([key, result]) => (
-                            // FIX: Used MotionDiv constant to ensure TypeScript correctly recognizes Framer Motion props.
                             <MotionDiv
                                 key={key}
                                 initial={{ opacity: 0, x: -20 }}
