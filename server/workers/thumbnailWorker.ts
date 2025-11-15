@@ -29,8 +29,5 @@ new Worker<ThumbnailJobData, void, string>(thumbnailQueue.name, async (job) => {
 }, {
   connection: redisConnection,
   concurrency: 2, // Can run a few in parallel as it's API-bound
-  settings: {
-    backoff: 5000, // 5-second delay between retries
-    attempts: 3, // Retry up to 3 times
-  },
+  // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
 });

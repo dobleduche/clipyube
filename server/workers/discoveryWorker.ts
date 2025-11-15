@@ -57,9 +57,5 @@ new Worker<DiscoveryJobData, void, string>(discoveryQueue.name, async (job) => {
   }
 }, {
   connection: redisConnection,
-  // Custom retry settings
-  settings: {
-    backoff: 5000, // 5-second delay between retries
-    attempts: 3, // Retry up to 3 times
-  },
+  // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
 });

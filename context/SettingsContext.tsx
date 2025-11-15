@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
+import { getSettingsRequest, saveSettingsRequest } from '../api/client';
 
 export type WatermarkSettings = {
     type: 'text' | 'image';
@@ -52,11 +53,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const response = await fetch('/api/automation/settings');
-                if (response.ok) {
-                    const serverSettings = await response.json();
-                    setSettings(serverSettings);
-                }
+                const serverSettings = await getSettingsRequest();
+                setSettings(serverSettings);
             } catch (error) {
                 console.error("Failed to fetch settings from server:", error);
             } finally {
@@ -68,11 +66,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     const debouncedSaveSettings = useDebouncedCallback(async (newSettings: Settings) => {
         try {
-            await fetch('/api/automation/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newSettings),
-            });
+            await saveSettingsRequest(newSettings);
         } catch (error) {
             console.error("Failed to save settings to server:", error);
         }

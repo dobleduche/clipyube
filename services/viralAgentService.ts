@@ -1,3 +1,5 @@
+import { runViralAgentRequest } from '../api/client';
+
 export type ContentIdea = {
     id: string;
     source: string;
@@ -22,17 +24,8 @@ export const runViralAgent = async (
 ): Promise<{ message: string }> => {
     onProgress("Dispatching agent to the discovery queue...");
 
-    const response = await fetch('/api/discovery/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche, platforms, geo }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to dispatch discovery agent.');
-    }
+    const result = await runViralAgentRequest(niche, platforms, geo);
 
     onProgress("Agent successfully dispatched.");
-    return response.json();
+    return result;
 };

@@ -1,9 +1,9 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 
 export const router = express.Router();
 
 // POST /api/publish/youtube
-router.post('/youtube', (req: express.Request, res: express.Response) => {
+router.post('/youtube', (req: Request, res: Response) => {
     const { draftId, title, description } = req.body;
     console.log(`Received request to publish draft ${draftId} to YouTube with title: ${title}`);
     
@@ -16,7 +16,7 @@ router.post('/youtube', (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/publish/cms
-router.post('/cms', (req: express.Request, res: express.Response) => {
+router.post('/cms', (req: Request, res: Response) => {
     const { draftId, content } = req.body;
     console.log(`Received request to publish draft ${draftId} to CMS.`);
     

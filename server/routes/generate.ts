@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import * as llm from '../adapters/llm';
 import { GoogleGenAI } from '@google/genai';
 import * as analysisService from '../services/analysisService';
@@ -10,7 +10,7 @@ export const router = express.Router();
 const videoTasks: { [key: string]: any } = {};
 
 // POST /api/generate/text - Generic text generation
-router.post('/text', async (req: express.Request, res: express.Response) => {
+router.post('/text', async (req: Request, res: Response) => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -26,7 +26,7 @@ router.post('/text', async (req: express.Request, res: express.Response) => {
 
 // POST /api/generate/blog
 // New endpoint with server-side validation
-router.post('/blog', async (req: express.Request, res: express.Response) => {
+router.post('/blog', async (req: Request, res: Response) => {
     try {
         const { idea } = req.body;
         if (!idea) {
@@ -79,7 +79,7 @@ router.post('/blog', async (req: express.Request, res: express.Response) => {
 
 
 // POST /api/generate/image
-router.post('/image', async (req: express.Request, res: express.Response) => {
+router.post('/image', async (req: Request, res: Response) => {
     try {
         const { base64Data, mimeType, prompt, operationDescription, styleBase64, styleMimeType } = req.body;
         if (!base64Data || !mimeType || !prompt) {
@@ -94,7 +94,7 @@ router.post('/image', async (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/generate/video
-router.post('/video', async (req: express.Request, res: express.Response) => {
+router.post('/video', async (req: Request, res: Response) => {
     try {
         const { prompt, aspectRatio, resolution } = req.body;
         if (!prompt) {
@@ -122,7 +122,7 @@ router.post('/video', async (req: express.Request, res: express.Response) => {
 
 
 // GET /api/generate/video/stream/:taskId
-router.get('/video/stream/:taskId', async (req: express.Request, res: express.Response) => {
+router.get('/video/stream/:taskId', async (req: Request, res: Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];
 
@@ -177,7 +177,7 @@ router.get('/video/stream/:taskId', async (req: express.Request, res: express.Re
 });
 
 // GET /api/generate/download/:taskId
-router.get('/download/:taskId', async (req: express.Request, res: express.Response) => {
+router.get('/download/:taskId', async (req: Request, res: Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];
 

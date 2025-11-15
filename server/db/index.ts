@@ -60,6 +60,17 @@ export const findItemById = <T extends keyof DbData>(tableName: T, id: string): 
   return (db[tableName] as any[]).find(item => item.id === id);
 };
 
+// FIX: Implement the missing updateItem function.
+export const updateItem = <T extends keyof (Omit<DbData, 'automation' | 'settings'>)>(tableName: T, id: string, updatedItem: any) => {
+  const table = (db[tableName] as any[]);
+  const itemIndex = table.findIndex(item => item.id === id);
+  if (itemIndex > -1) {
+    table[itemIndex] = updatedItem;
+    return updatedItem;
+  }
+  return undefined;
+};
+
 // State management functions
 export const getAutomationState = () => db.automation;
 export const setAutomationRunning = (isRunning: boolean) => {

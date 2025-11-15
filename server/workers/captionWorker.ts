@@ -2,6 +2,8 @@
 import { Worker } from "bullmq";
 import { redisConnection as connection, captionQueue } from '../queues';
 import OpenAI from "openai";
+// FIX: Import createWriteStream and createReadStream from `fs`, not `fs/promises`.
+import { createReadStream, createWriteStream } from "node:fs";
 import fs from "node:fs/promises"; // Use promises API
 import path from "node:path";
 import os from "node:os";
@@ -52,7 +54,7 @@ new Worker<JobData, void, string>(captionQueue.name, async (job) => {
 
   // Download file
   await fs.mkdir(os.tmpdir(), { recursive: true }); // Ensure temp dir exists
-  const fileStream = fs.createWriteStream(tempFilePath);
+  const fileStream = createWriteStream(tempFilePath);
   const protocol = src.startsWith('https') ? https : http;
 
   try {
@@ -74,8 +76,9 @@ new Worker<JobData, void, string>(captionQueue.name, async (job) => {
     });
 
     // Transcribe
+    // FIX: Use a ReadStream for the file, which satisfies the `Uploadable` type.
     const transcription = await client.audio.transcriptions.create({
-      file: await fs.readFile(tempFilePath),
+      file: createReadStream(tempFilePath),
       model: "whisper-1",
     });
     const transcript = transcription.text || "[No transcript found]";
@@ -94,9 +97,5 @@ new Worker<JobData, void, string>(captionQueue.name, async (job) => {
 }, {
   connection,
   concurrency: 2,
-  // Add retry logic
-  settings: {
-    backoff: 5000, // 5-second delay between retries
-    attempts: 3, // Retry up to 3 times
-  },
+  // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
 });

@@ -1,8 +1,12 @@
 // This file acts as the client-side bridge to the secure backend API.
 // It makes fetch requests to the server, which then handles the direct
 // interaction with external services like Google Gemini.
+import { ContentIdea } from '../services/viralAgentService';
+import { BlogPost } from '../pages/BlogPage';
+import { Settings } from '../context/SettingsContext';
 
-const API_BASE_URL = 'api.clipyube.info';
+
+const API_BASE_URL = 'https://api.clipyube.info';
 
 /**
  * A generic helper to call the backend's image generation endpoint.
@@ -35,24 +39,6 @@ export const generateImageContent = async (
 
     const data = await response.json();
     return data.imageUrl;
-};
-
-/**
- * Calls the backend to generate text content using the Gemini Pro model.
- */
-export const generateTextContent = async (prompt: string): Promise<string> => {
-    const response = await fetch(`${API_BASE_URL}/api/generate/text`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate text content');
-    }
-    const data = await response.json();
-    return data.text;
 };
 
 /**
@@ -160,5 +146,91 @@ export const ingestClip = async (url: string, tenant: string = 'default'): Promi
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, tenant }),
+    });
+};
+
+// --- New/Refactored Functions ---
+
+export const generateBlogPostRequest = async (idea: ContentIdea): Promise<{blogPost: BlogPost}> => {
+    const response = await fetch(`${API_BASE_URL}/api/generate/blog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        const details = errorData.details ? ` Details: ${errorData.details.join(', ')}` : '';
+        throw new Error((errorData.error || 'Failed to generate blog post from server.') + details);
+    }
+    
+    const data = await response.json();
+    if (!data.blogPost) {
+        throw new Error("Server returned no content for the blog post.");
+    }
+    return data;
+};
+
+export const runViralAgentRequest = async (
+    niche: string,
+    platforms: string[],
+    geo: string,
+): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/api/discovery/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche, platforms, geo }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to dispatch discovery agent.');
+    }
+
+    return response.json();
+};
+
+export const getSettingsRequest = async (): Promise<Settings> => {
+    const response = await fetch(`${API_BASE_URL}/api/automation/settings`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch settings from server.');
+    }
+    return response.json();
+};
+
+export const saveSettingsRequest = async (newSettings: Partial<Settings>): Promise<Response> => {
+    return fetch(`${API_BASE_URL}/api/automation/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings),
+    });
+};
+
+export const getAutomationStatusRequest = (): Promise<Response> => {
+    return fetch(`${API_BASE_URL}/api/automation/status`);
+};
+
+export const getAutomationLogsRequest = (): Promise<Response> => {
+    return fetch(`${API_BASE_URL}/api/automation/logs`);
+};
+
+export const startAutomationRequest = (): Promise<Response> => {
+    return fetch(`${API_BASE_URL}/api/automation/start`, { method: 'POST' });
+};
+
+export const stopAutomationRequest = (): Promise<Response> => {
+    return fetch(`${API_BASE_URL}/api/automation/stop`, { method: 'POST' });
+};
+
+export const getHealthRequest = (): Promise<Response> => {
+    return fetch(`${API_BASE_URL}/api/health`);
+};
+
+export const generateTextRequest = (prompt: string): Promise<Response> => {
+    return fetch(`${API_BASE_URL}/api/generate/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
     });
 };

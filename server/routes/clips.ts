@@ -1,5 +1,5 @@
 // server/routes/clips.ts
-import express from "express";
+import express, { Request, Response } from "express";
 import { Redis } from "ioredis"; // Ensure ioredis types are installed
 import { Queue } from "bull"; // Adjust based on your queue library (e.g., Bull)
 import { redisConnection, automationQueue as automationQ } from "../queues";
@@ -25,7 +25,7 @@ const r: Redis = redisConnection;
  * Body: { url: string; tenant?: string }
  * Push a clip URL into the inbox and nudge the automation queue.
  */
-router.post("/ingest", async (req: express.Request, res: express.Response) => {
+router.post("/ingest", async (req: Request, res: Response) => {
   const { url, tenant = "default" } = (req.body ?? {}) as { url?: string; tenant?: string };
   if (!url || typeof url !== "string") {
     return res.status(400).json({ ok: false, error: "URL is required" });
@@ -47,7 +47,7 @@ router.post("/ingest", async (req: express.Request, res: express.Response) => {
  * GET /api/clips/logs/:tenant
  * Server-Sent Events stream for real-time logs filtered by tenant.
  */
-router.get("/logs/:tenant", async (req: express.Request, res: express.Response) => {
+router.get("/logs/:tenant", async (req: Request, res: Response) => {
   const { tenant } = req.params;
 
   // Basic SSE headers
@@ -75,7 +75,9 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
   // Emit a hello event so clients know we're live
   res.write(`event: hello\ndata: ${JSON.stringify({ tenant, ok: true })}\n\n`);
 
-  const onMessage = (message: string, channel: string) => {
+  // FIX: Correctly handle pub/sub messages using an event listener.
+  const onMessage = (channel: string, message: string) => {
+    if (channel !== CHANNEL) return;
     try {
       const log = JSON.parse(message) as { tenant?: string } & Record<string, unknown>;
       if (!tenant || log.tenant === tenant) {
@@ -85,12 +87,15 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
       console.error("[clips] Bad pub/sub payload:", e);
     }
   };
+  
+  sub.on('message', onMessage);
 
   try {
-    await sub.subscribe(CHANNEL, onMessage); // Correct subscribe signature
+    await sub.subscribe(CHANNEL);
   } catch (err) {
     console.error("[clips] Subscribe failed:", err);
     res.status(500).end();
+    sub.off('message', onMessage); // Clean up listener on failure
     try {
       await sub.quit();
     } catch {}
@@ -105,6 +110,7 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
   // Cleanup when client disconnects
   const cleanup = async () => {
     clearInterval(keepAlive);
+    sub.off('message', onMessage); // Clean up listener
     try {
       await sub.unsubscribe(CHANNEL);
     } catch {}

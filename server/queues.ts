@@ -1,5 +1,6 @@
 // server/queues.ts
-import { Queue, JobOptions, QueueOptions } from 'bullmq';
+// FIX: Changed JobOptions to JobsOptions
+import { Queue, JobsOptions, QueueOptions } from 'bullmq';
 import IORedis from 'ioredis';
 
 // Configure Redis connection with environment variable or default
@@ -26,7 +27,9 @@ const createQueue = (name: string, options?: QueueOptions): Queue => {
 };
 
 // Define queue options (e.g., default settings)
+// FIX: Added required `connection` property to the options object.
 const defaultQueueOptions: QueueOptions = {
+  connection: redisConnection,
   defaultJobOptions: {
     attempts: 3,
     backoff: 5000, // 5-second delay between retries

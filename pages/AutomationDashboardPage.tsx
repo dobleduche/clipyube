@@ -3,6 +3,7 @@ import { useSettings } from '../context/SettingsContext';
 import { RocketIcon, PlayIcon, StopIcon, TrendingUpIcon, DocumentTextIcon } from '../components/Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loader from '../components/Loader';
+import { getAutomationStatusRequest, getAutomationLogsRequest, startAutomationRequest, stopAutomationRequest } from '../api/client';
 
 const MotionDiv = motion.div;
 
@@ -46,8 +47,8 @@ const AutomationDashboardPage: React.FC = () => {
     const fetchStatus = useCallback(async () => {
         try {
             const [statusRes, logsRes] = await Promise.all([
-                fetch('/api/automation/status'),
-                fetch('/api/automation/logs'),
+                getAutomationStatusRequest(),
+                getAutomationLogsRequest(),
             ]);
             if (statusRes.ok) {
                 const statusData = await statusRes.json();
@@ -72,7 +73,7 @@ const AutomationDashboardPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/automation/start', { method: 'POST' });
+            const res = await startAutomationRequest();
             if (!res.ok) throw new Error(await res.json().then(d => d.error));
             await fetchStatus();
         } catch (e) {
@@ -85,7 +86,7 @@ const AutomationDashboardPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/automation/stop', { method: 'POST' });
+            const res = await stopAutomationRequest();
             if (!res.ok) throw new Error(await res.json().then(d => d.error));
             await fetchStatus();
         } catch (e) {

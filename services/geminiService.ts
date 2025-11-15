@@ -1,6 +1,4 @@
 import { generateImageContent, generateVideoWithVeo as generateVideoWithVeoClient } from "../api/client";
-import { ContentIdea } from "./viralAgentService";
-import { BlogPost } from "../pages/BlogPage";
 
 /**
  * Edits an image using a text prompt via the secure API client.
@@ -59,25 +57,4 @@ export const generateVideoWithVeo = async (
     onProgress: (message: string) => void
 ): Promise<string> => {
     return generateVideoWithVeoClient(prompt, aspectRatio, resolution, onProgress);
-};
-
-/**
- * Generates a blog post by calling the secure, validating backend endpoint.
- * @param idea The content idea to expand into a blog post.
- * @returns A promise that resolves to a BlogPost object.
- */
-export const generateBlogPost = async (idea: ContentIdea): Promise<BlogPost> => {
-    const response = await fetch('/api/generate/blog', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idea }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate blog post on server.');
-    }
-
-    const { blogPost } = await response.json();
-    return blogPost;
 };

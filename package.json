@@ -24,7 +24,8 @@
     "redis": "^5.9.0",
     "lib": "^5.1.0",
     "use-debounce": "^10.0.6",
-    "@runwayml/sdk": "^3.7.0"
+    "@runwayml/sdk": "^3.7.0",
+    "bull": "^4.16.5"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -1,5 +1,7 @@
 // server/services/thumbnailService.ts
 import * as db from '../db';
+// FIX: Import addAutomationLog to make it available in this module.
+import { addAutomationLog } from '../db';
 import * as llm from '../adapters/llm';
 
 /**

@@ -1,12 +1,12 @@
 // server/routes/discovery.ts
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { discoveryQueue } from '../queues';
 
 export const router = express.Router();
 
 // POST /api/discovery/run
 // This endpoint now enqueues a job instead of running the discovery synchronously.
-router.post('/run', async (req: express.Request, res: express.Response) => {
+router.post('/run', async (req: Request, res: Response) => {
     try {
         const { niche, platforms, geo = 'US' } = req.body;
         if (!niche || !platforms) {

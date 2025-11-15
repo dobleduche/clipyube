@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Loader from '../components/Loader';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getHealthRequest, generateTextRequest } from '../api/client';
 
 type TestStatus = 'pending' | 'running' | 'pass' | 'fail';
 
@@ -32,7 +33,7 @@ const SmokeTestPage: React.FC = () => {
         // --- Test 1: Backend Health Check ---
         updateTestResult('backendHealth', 'running', 'Pinging backend server...');
         try {
-            const healthResponse = await fetch('/api/health');
+            const healthResponse = await getHealthRequest();
             if (!healthResponse.ok) throw new Error(`Server responded with status ${healthResponse.status}`);
             const healthData: unknown = await healthResponse.json();
             // FIX: Safely access property 'status' on type 'unknown' after performing type checks.
@@ -51,11 +52,7 @@ const SmokeTestPage: React.FC = () => {
         // --- Test 2: Gemini API Service Check ---
         updateTestResult('geminiApi', 'running', 'Sending test prompt to Gemini via backend...');
         try {
-            const apiResponse = await fetch('/api/generate/text', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: "Health check: respond with 'OK'" }),
-            });
+            const apiResponse = await generateTextRequest("Health check: respond with 'OK'");
             if (!apiResponse.ok) {
                 let errorMsg = `API responded with status ${apiResponse.status}`;
                 try {
@@ -68,7 +65,8 @@ const SmokeTestPage: React.FC = () => {
                 throw new Error(errorMsg);
             }
             const apiData: unknown = await apiResponse.json();
-            if (typeof apiData !== 'object' || apiData === null || !('text' in apiData) || typeof apiData.text !== 'string') {
+            // FIX: Safely access property 'text' on type 'unknown' after performing type checks.
+            if (typeof apiData !== 'object' || apiData === null || !('text' in apiData) || typeof (apiData as {text: unknown}).text !== 'string') {
                 throw new Error('API returned an invalid response format.');
             }
             updateTestResult('geminiApi', 'pass', 'Successfully received a response from the Gemini API proxy.');
