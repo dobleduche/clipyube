@@ -6,7 +6,7 @@ import { BlogPost } from '../pages/BlogPage';
 import { Settings } from '../context/SettingsContext';
 
 
-const API_BASE_URL = 'https://api.clipyube.info';
+const API_BASE_URL = 'http://localhost:3001';
 
 /**
  * A generic helper to call the backend's image generation endpoint.
@@ -57,74 +57,6 @@ export const searchImagesRequest = async (prompt: string): Promise<{ images: str
     }
 
     return response.json();
-};
-
-/**
- * Generates a video by starting a task on the backend and listening for progress via SSE.
- */
-export const generateVideoWithVeo = (
-    prompt: string,
-    aspectRatio: '16:9' | '9:16',
-    resolution: '720p' | '1080p',
-    onProgress: (message: string) => void
-): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            // 1. Start the video generation task on the server
-            const startResponse = await fetch(`${API_BASE_URL}/api/generate/video`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, aspectRatio, resolution }),
-            });
-
-            if (!startResponse.ok) {
-                const errorData = await startResponse.json();
-                throw new Error(errorData.error || 'Failed to start video generation task.');
-            }
-
-            const { taskId } = await startResponse.json();
-
-            // 2. Connect to the SSE stream for progress updates
-            const eventSource = new EventSource(`${API_BASE_URL}/api/generate/video/stream/${taskId}`);
-            
-            eventSource.onmessage = async (event) => {
-                const data = JSON.parse(event.data);
-                
-                if (data.progress) {
-                    onProgress(data.progress);
-                }
-
-                if (data.finalUrl) {
-                    onProgress("Download started...");
-                    // 3. The backend provides a proxied download URL. Fetch it to get the video blob.
-                    try {
-                        const videoResponse = await fetch(`${API_BASE_URL}${data.finalUrl}`);
-                        if (!videoResponse.ok) throw new Error("Failed to download final video.");
-                        const videoBlob = await videoResponse.blob();
-                        resolve(URL.createObjectURL(videoBlob));
-                    } catch (fetchError) {
-                        reject(fetchError);
-                    } finally {
-                        eventSource.close();
-                    }
-                }
-
-                if (data.error) {
-                    reject(new Error(data.error));
-                    eventSource.close();
-                }
-            };
-
-            eventSource.onerror = (err) => {
-                console.error("EventSource failed:", err);
-                reject(new Error("Connection to the video generation stream was lost."));
-                eventSource.close();
-            };
-
-        } catch (error) {
-            reject(error);
-        }
-    });
 };
 
 /**

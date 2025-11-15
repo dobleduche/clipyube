@@ -1,11 +1,12 @@
-// FIX: Changed express import to default import to fix type resolution issues.
-import express from 'express';
+// FIX: Corrected Express type usage to resolve conflicts.
+// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+import express, { Request, Response } from 'express';
 
 export const router = express.Router();
 
 // POST /api/publish/youtube
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/youtube', (req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/youtube', (req: Request, res: Response) => {
     const { draftId, title, description } = req.body;
     console.log(`Received request to publish draft ${draftId} to YouTube with title: ${title}`);
     
@@ -18,8 +19,8 @@ router.post('/youtube', (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/publish/cms
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/cms', (req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/cms', (req: Request, res: Response) => {
     const { draftId, content } = req.body;
     console.log(`Received request to publish draft ${draftId} to CMS.`);
     

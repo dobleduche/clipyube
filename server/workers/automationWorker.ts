@@ -4,7 +4,6 @@ import { redisConnection as connection, automationQueue, transcodeQueue, thumbQu
 import * as db from '../db';
 
 const r = connection.duplicate();
-r.connect().catch(() => {});
 
 function log(tenant: string, type: "info" | "success" | "error", message: string) {
     // This worker is for a different pipeline, so it logs differently.
@@ -15,7 +14,7 @@ function log(tenant: string, type: "info" | "success" | "error", message: string
 const INBOX = (t = "default") => `clipyube:${t}:inbox`;
 
 async function dequeueInbox(tenant: string) {
-    const url = await r.rpop('INBOX(tenant)');
+    const url = await r.rpop(INBOX(tenant));
     return url as string | null;
 }
 

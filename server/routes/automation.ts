@@ -1,26 +1,27 @@
 // server/routes/automation.ts
-// FIX: Changed express import to default import to fix type resolution issues.
-import express from 'express';
+// FIX: Corrected Express type usage to resolve conflicts.
+// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+import express, { Request, Response } from 'express';
 import * as db from '../db';
 import { discoveryQueue, scheduleAutomation, removeAutomationSchedule } from '../queues';
 
 export const router = express.Router();
 
 // GET /api/automation/status
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.get('/status', (_req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.get('/status', (_req: Request, res: Response) => {
     res.json(db.getAutomationState());
 });
 
 // GET /api/automation/logs
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.get('/logs', (_req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.get('/logs', (_req: Request, res: Response) => {
     res.json(db.getAutomationState().logs);
 });
 
 // POST /api/automation/start
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/start', async (_req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/start', async (_req: Request, res: Response) => {
     const state = db.getAutomationState();
     if (state.isRunning) {
         return res.status(400).json({ error: 'Automation is already running.' });
@@ -39,8 +40,8 @@ router.post('/start', async (_req: express.Request, res: express.Response) => {
 });
 
 // POST /api/automation/stop
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/stop', async (_req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/stop', async (_req: Request, res: Response) => {
     const state = db.getAutomationState();
     if (!state.isRunning) {
         return res.status(400).json({ error: 'Automation is not running.' });
@@ -54,14 +55,14 @@ router.post('/stop', async (_req: express.Request, res: express.Response) => {
 });
 
 // GET /api/automation/settings
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.get('/settings', (_req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.get('/settings', (_req: Request, res: Response) => {
     res.json(db.getSettings());
 });
 
 // POST /api/automation/settings
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/settings', (req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/settings', (req: Request, res: Response) => {
     const newSettings = req.body;
     const updatedSettings = db.updateSettings(newSettings);
     

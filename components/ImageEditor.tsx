@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, generateVideoWithVeo, searchImages } from '../services/geminiService';
+import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, searchImages } from '../services/geminiService';
 import { generateVideoWithRunway } from '../services/runwayService';
 import { fileToBase64, dataUrlToFile } from '../utils/fileUtils';
 import Loader from './Loader';
@@ -24,31 +24,38 @@ const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
         return `An unknown error occurred during ${operation}.`;
     }
 
-    const message = error.message.toLowerCase();
+    const message = error.message; // Keep case for API key names
+    const lowerMessage = message.toLowerCase();
 
-    if (message.includes('api key not valid') || message.includes('api_key_invalid') || message.includes('requested entity was not found')) {
-        return `API Key Error: Your key seems to be invalid or missing. For Veo video generation, please click 'Generate' again to re-select your key. For other features, please ensure your key is configured correctly.`;
+    if (lowerMessage.includes('api key not valid') || lowerMessage.includes('api_key_invalid') || lowerMessage.includes('requested entity was not found') || message.includes('RUNWAY_API_KEY')) {
+        let keyType = 'API';
+        if (operation.toLowerCase().includes('video')) {
+            keyType = 'Runway';
+        } else {
+            keyType = 'Gemini';
+        }
+        return `API Key Error: Your ${keyType} key seems to be invalid or missing. Please ensure it is configured correctly in your environment.`;
     }
 
-    if (message.includes('safety policies') || message.includes('prompt was blocked') || message.includes('candidate was blocked')) {
+    if (lowerMessage.includes('safety policies') || lowerMessage.includes('prompt was blocked') || lowerMessage.includes('candidate was blocked')) {
         return `Content Policy Violation: Your request for '${operation}' was blocked. Please try rephrasing your prompt to be more specific and avoid potentially sensitive topics.`;
     }
 
-    if (message.includes('quota')) {
-        return `Quota Exceeded: You have exceeded your API usage limits. Please check your account status and billing information on the Google AI Studio website.`;
+    if (lowerMessage.includes('quota')) {
+        return `Quota Exceeded: You have exceeded your API usage limits. Please check your account status and billing information.`;
     }
     
-    if (message.includes('billing')) {
-         return `Billing Error: There may be an issue with your billing account. Please ensure it's active and has a valid payment method in your Google AI Studio account.`;
+    if (lowerMessage.includes('billing')) {
+         return `Billing Error: There may be an issue with your billing account. Please ensure it's active and has a valid payment method.`;
     }
 
-    if (message.includes('network request failed') || message.includes('fetch')) {
+    if (lowerMessage.includes('network request failed') || lowerMessage.includes('fetch')) {
         return `Network Error: Could not connect to the AI service. Please check your internet connection and try again.`;
     }
     
     // Default Gemini API error
-    if (message.includes('gemini api')) {
-        const cleanerMessage = message.replace(/an error occurred during .*? with the gemini api:/, '').trim();
+    if (lowerMessage.includes('gemini api')) {
+        const cleanerMessage = message.replace(/an error occurred during .*? with the gemini api:/i, '').trim();
         return `AI Model Error during ${operation}: ${cleanerMessage}. Please try a different prompt or try again later.`;
     }
 
@@ -289,10 +296,7 @@ export const ImageEditor: React.FC = () => {
     const [isVideoGenerating, setIsVideoGenerating] = useState<boolean>(false);
     const [videoGenerationProgress, setVideoGenerationProgress] = useState<string>('');
     const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
-    const [videoProvider, setVideoProvider] = useState<'veo' | 'runway'>('veo');
-    const [hasVeoApiKey, setHasVeoApiKey] = useState(false);
     const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16'>('16:9');
-    const [videoResolution, setVideoResolution] = useState<'720p' | '1080p'>('720p');
     const [caption, setCaption] = useState<{ text: string; style: CaptionStyle } | null>(null);
     const [videoPresets, setVideoPresets] = useState<VideoPreset[]>([]);
 
@@ -337,18 +341,6 @@ export const ImageEditor: React.FC = () => {
             setWatermark(prev => ({ ...prev, ...settings.watermarkDefaults }));
         }
     }, [activeTool, settings.watermarkDefaults, watermark.type]);
-
-
-    // Check for Veo API key on mount and when provider changes
-    useEffect(() => {
-        const checkKey = async () => {
-            if (videoProvider === 'veo' && window.aistudio?.hasSelectedApiKey) {
-                const hasKey = await window.aistudio.hasSelectedApiKey();
-                setHasVeoApiKey(hasKey);
-            }
-        };
-        checkKey();
-    }, [videoProvider]);
 
     // Handle automation commands from parent
     useEffect(() => {
@@ -894,6 +886,10 @@ export const ImageEditor: React.FC = () => {
             setError('Please enter a prompt for the video.');
             return;
         }
+        if (!currentHistoryState?.imageFile) {
+            setError('An image is required to generate a video with Runway.');
+            return;
+        }
     
         setIsVideoGenerating(true);
         setVideoGenerationProgress('Initializing video generation...');
@@ -901,13 +897,6 @@ export const ImageEditor: React.FC = () => {
         setGeneratedVideoUrl(null);
     
         try {
-            if (videoProvider === 'veo') {
-                if (window.aistudio && !(await window.aistudio.hasSelectedApiKey())) {
-                    await window.aistudio.openSelectKey();
-                    // We can assume the key is now selected and proceed
-                }
-            }
-            
             let fullVideoPrompt = videoPrompt;
             if (videoStyle && videoStyle !== 'Custom') {
                 const styleInfo = videoStyles.find(s => s.name === videoStyle);
@@ -920,11 +909,20 @@ export const ImageEditor: React.FC = () => {
                 fullVideoPrompt += ` With caption text: "${caption.text}"`;
             }
     
-            const serviceCall = videoProvider === 'veo' 
-                ? generateVideoWithVeo(fullVideoPrompt, videoAspectRatio, videoResolution, setVideoGenerationProgress)
-                : generateVideoWithRunway(fullVideoPrompt, setVideoGenerationProgress);
+            const bakedState = await bakeAndCommitEffects();
+            if (!bakedState || !bakedState.imageFile) {
+                throw new Error("Could not prepare image for video generation.");
+            }
+            const imageBase64 = await fileToBase64(bakedState.imageFile);
+            const imageMimeType = bakedState.imageFile.type;
             
-            const videoUrl = await serviceCall;
+            const videoUrl = await generateVideoWithRunway(
+                fullVideoPrompt,
+                imageBase64,
+                imageMimeType,
+                videoAspectRatio,
+                setVideoGenerationProgress
+            );
             setGeneratedVideoUrl(videoUrl);
     
         } catch (err) {
@@ -933,7 +931,7 @@ export const ImageEditor: React.FC = () => {
             setIsVideoGenerating(false);
             setVideoGenerationProgress('');
         }
-    }, [videoPrompt, videoStyle, currentHistoryState, videoProvider, videoAspectRatio, videoResolution, caption]);
+    }, [videoPrompt, videoStyle, currentHistoryState, videoAspectRatio, caption, bakeAndCommitEffects]);
 
     // Image Search Logic
     const handleImageSearch = async () => {
@@ -1502,23 +1500,13 @@ export const ImageEditor: React.FC = () => {
                                 {videoStyles.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
                              </select>
                          </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                         <div className="grid grid-cols-1 gap-4 mb-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-2">Aspect Ratio</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {(['16:9', '9:16'] as const).map(ar => (
                                         <button key={ar} onClick={() => setVideoAspectRatio(ar)} className={`p-2 w-full text-sm font-semibold rounded-md transition-colors ${videoAspectRatio === ar ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}>
                                             {ar}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Resolution</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {(['720p', '1080p'] as const).map(res => (
-                                        <button key={res} onClick={() => setVideoResolution(res)} className={`p-2 w-full text-sm font-semibold rounded-md transition-colors ${videoResolution === res ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'}`}>
-                                            {res}
                                         </button>
                                     ))}
                                 </div>

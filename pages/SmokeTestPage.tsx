@@ -135,23 +135,26 @@ const SmokeTestPage: React.FC = () => {
         <h3 className="text-2xl font-bold text-white mb-4 font-oswald">Test Results</h3>
         <div className="space-y-4">
           <AnimatePresence>
-            {Object.entries(testResults).map(([key, result]) => (
-              <MotionDiv
-                key={key}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 * Object.keys(testResults).indexOf(key) }}
-                className="bg-black/20 p-4 rounded-lg flex items-start gap-4"
-              >
-                <div className="flex-shrink-0 pt-1">{getStatusIndicator(result.status)}</div>
-                <div>
-                  <h4 className="font-semibold text-slate-200 capitalize">
-                    {key.replace(/([A-Z])/g, ' $1').replace('Api', 'API')}
-                  </h4>
-                  <p className="text-sm text-slate-400 whitespace-pre-wrap">{result.message}</p>
-                </div>
-              </MotionDiv>
-            ))}
+            {Object.keys(testResults).map((key, index) => {
+                const result = testResults[key];
+                return (
+                  <MotionDiv
+                    key={key}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 * index }}
+                    className="bg-black/20 p-4 rounded-lg flex items-start gap-4"
+                  >
+                    <div className="flex-shrink-0 pt-1">{getStatusIndicator(result.status)}</div>
+                    <div>
+                      <h4 className="font-semibold text-slate-200 capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').replace('Api', 'API')}
+                      </h4>
+                      <p className="text-sm text-slate-400 whitespace-pre-wrap">{result.message}</p>
+                    </div>
+                  </MotionDiv>
+                );
+            })}
           </AnimatePresence>
         </div>
       </div>

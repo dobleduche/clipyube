@@ -1,4 +1,4 @@
-import { generateImageContent, generateVideoWithVeo as generateVideoWithVeoClient, searchImagesRequest } from "../api/client";
+import { generateImageContent, searchImagesRequest } from "../api/client";
 
 /**
  * Edits an image using a text prompt via the secure API client.
@@ -54,16 +54,4 @@ export const applyStyleTransfer = async (
 export const searchImages = async (prompt: string): Promise<string[]> => {
     const result = await searchImagesRequest(prompt);
     return result.images;
-};
-
-/**
- * Generates a video from a text prompt using the Google Veo model via the secure API client.
- */
-export const generateVideoWithVeo = async (
-    prompt: string,
-    aspectRatio: '16:9' | '9:16',
-    resolution: '720p' | '1080p',
-    onProgress: (message: string) => void
-): Promise<string> => {
-    return generateVideoWithVeoClient(prompt, aspectRatio, resolution, onProgress);
 };

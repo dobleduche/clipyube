@@ -10,16 +10,16 @@ type ProgressFn = (message: string) => void;
  */
 export const generateVideoWithRunway = async (
   prompt: string,
+  imageBase64: string,
+  imageMimeType: string,
+  aspectRatio: '16:9' | '9:16',
   onProgress: ProgressFn
 ): Promise<string> => {
   if (!process.env.RUNWAY_API_KEY) {
-    throw new Error('RUNWAY_API_KEY is not set');
+    throw new Error('RUNWAY_API_KEY is not set. This key is required for video generation and should be configured in your environment.');
   }
 
-  // Any valid image URL or data URI works. Replace with your own source/frame when available.
-  // (Runway’s image_to_video requires an input image; SDK handles upload/URL) :contentReference[oaicite:0]{index=0}
-  const promptImage =
-    'https://upload.wikimedia.org/wikipedia/commons/8/85/Tour_Eiffel_Wikimedia_Commons_(cropped).jpg';
+  const promptImage = `data:${imageMimeType};base64,${imageBase64}`;
 
   onProgress('Starting Runway image-to-video task (gen4_turbo)…');
 
@@ -34,10 +34,10 @@ export const generateVideoWithRunway = async (
         model: 'gen4_turbo',
         promptImage,               // URL or data URI (base64)
         promptText: prompt,        // your text guidance
-        ratio: '1280:720',         // 16:9 (see docs for valid ratios)
+        ratio: aspectRatio === '16:9' ? '1280:720' : '720:1280',
         duration: 5,               // seconds (typical 5–10s clips)
       })
-      .waitForTaskOutput();        // SDK polls until finished :contentReference[oaicite:1]{index=1}
+      .waitForTaskOutput();        // SDK polls until finished
 
     // The SDK returns an object with output URLs (first is the final mp4)
     if (!task?.output?.[0]) {

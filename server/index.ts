@@ -1,7 +1,8 @@
 // server/index.ts
 import "dotenv/config";
-// FIX: Changed express import to default import to fix type resolution issues.
-import express from "express";
+// FIX: Corrected Express type usage to resolve conflicts.
+// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+import express, { Request, Response, NextFunction, ErrorRequestHandler } from "express";
 import cors from "cors";
 import { router as generate } from "./routes/generate";
 import { router as discovery } from "./routes/discovery";
@@ -22,7 +23,6 @@ const bootWorkers = () => {
   ];
 
   workers.forEach((worker) => {
-    // FIX: Cannot find name 'require'. Replaced with dynamic import for ES module compatibility.
     import(worker)
       .then(() => {
         console.log(`[Server] Booted worker: ${worker}`);
@@ -57,18 +57,18 @@ app.use("/api/clips", clips);
 app.use("/api/automation", automation);
 
 // Health check
-// FIX: Used express.Response to correctly type the response object.
-app.get("/api/health", (_req: express.Request, res: express.Response) =>
+// FIX: Use Request and Response types from express.
+app.get("/api/health", (_req: Request, res: Response) =>
   res.status(200).json({ status: "ok" })
 );
 
 // Central error handler
-// FIX: Used express types to correctly type the error handler arguments.
-const errorHandler: express.ErrorRequestHandler = (
+const errorHandler: ErrorRequestHandler = (
   err: any,
-  _req: express.Request,
-  res: express.Response,
-  _next: express.NextFunction
+  // FIX: Use Request and Response types from express.
+  _req: Request,
+  res: Response,
+  _next: NextFunction
 ) => {
   const status = err.status || 500;
   const message = err.message || "Internal Server Error";
@@ -78,7 +78,7 @@ const errorHandler: express.ErrorRequestHandler = (
 app.use(errorHandler);
 
 // Validate environment and start server
-const port = Number(process.env.PORT) || 3001; // Match earlier context
+const port = Number(process.env.PORT) || 3001;
 if (!process.env.PORT) {
   console.warn("[Server] PORT not set in .env, using default 3001");
 }

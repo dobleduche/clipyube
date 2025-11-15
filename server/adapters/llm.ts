@@ -2,25 +2,25 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 let ai: GoogleGenAI | null = null;
 
-if (!process.env.API_KEY) {
-    console.error("API_KEY environment variable not set. Server cannot make Gemini API calls. API-dependent features will fail.");
-} else {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-}
-
 const imageModel = 'gemini-2.5-flash-image';
 const proModel = 'gemini-2.5-pro';
-const videoModel = 'veo-3.1-fast-generate-preview';
 
 /**
- * Helper function to ensure the GoogleGenAI client is initialized.
+ * Helper function to lazily initialize and get the GoogleGenAI client.
  * Throws a user-friendly error if the API key is missing.
  */
 const getAiClient = (): GoogleGenAI => {
-    if (!ai) {
-        throw new Error("Gemini API client is not initialized. Please ensure the API_KEY environment variable is set correctly on the server.");
+    if (ai) {
+        return ai; // Return cached client
     }
-    return ai;
+
+    if (process.env.API_KEY) {
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        return ai;
+    }
+
+    // If we reach here, the key is missing.
+    throw new Error("Gemini API client is not initialized. Please ensure the API_KEY environment variable is set correctly on the server.");
 };
 
 /**
@@ -98,36 +98,6 @@ export const generateTextContent = async (prompt: string, retries = 1): Promise<
         }
     }
     throw new Error(`Gemini API Error after ${retries} attempts: ${lastError?.message}`);
-};
-
-
-/**
- * Starts a video generation task with Google Veo and returns the operation object.
- */
-export const startVideoGeneration = async (
-    prompt: string,
-    aspectRatio: '16:9' | '9:16',
-    resolution: '720p' | '1080p'
-) => {
-    try {
-        const localAi = getAiClient();
-        const operation = await localAi.models.generateVideos({
-            model: videoModel,
-            prompt: prompt,
-            config: {
-                numberOfVideos: 1,
-                resolution: resolution,
-                aspectRatio: aspectRatio
-            }
-        });
-        return operation;
-    } catch (error) {
-        console.error(`Error calling Veo API:`, error);
-        if (error instanceof Error) {
-            throw new Error(`Veo API Error: ${error.message}`);
-        }
-        throw new Error(`An unknown error occurred during Veo video generation.`);
-    }
 };
 
 /**

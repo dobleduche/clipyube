@@ -1,18 +1,15 @@
-// FIX: Changed express import to default import to fix type resolution issues.
-import express from 'express';
+// FIX: Corrected Express type usage to resolve conflicts.
+// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+import express, { Request, Response } from 'express';
 import * as llm from '../adapters/llm';
-import { GoogleGenAI } from '@google/genai';
 import * as analysisService from '../services/analysisService';
 import { sanitizeHtml } from '../../utils/sanitize';
 
 export const router = express.Router();
 
-// In-memory store for video generation tasks
-const videoTasks: { [key: string]: any } = {};
-
 // POST /api/generate/text - Generic text generation
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/text', async (req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/text', async (req: Request, res: Response) => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -28,8 +25,8 @@ router.post('/text', async (req: express.Request, res: express.Response) => {
 
 // POST /api/generate/blog
 // New endpoint with server-side validation
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/blog', async (req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/blog', async (req: Request, res: Response) => {
     try {
         const { idea } = req.body;
         if (!idea) {
@@ -82,8 +79,8 @@ router.post('/blog', async (req: express.Request, res: express.Response) => {
 
 
 // POST /api/generate/image
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/image', async (req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/image', async (req: Request, res: Response) => {
     try {
         const { base64Data, mimeType, prompt, operationDescription, styleBase64, styleMimeType } = req.body;
         if (!base64Data || !mimeType || !prompt) {
@@ -98,8 +95,8 @@ router.post('/image', async (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/generate/search-images
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/search-images', async (req: express.Request, res: express.Response) => {
+// FIX: Use Request and Response types from express.
+router.post('/search-images', async (req: Request, res: Response) => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -110,125 +107,5 @@ router.post('/search-images', async (req: express.Request, res: express.Response
     } catch (error) {
         console.error('Image search error:', error);
         res.status(500).json({ error: (error as Error).message });
-    }
-});
-
-// POST /api/generate/video
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.post('/video', async (req: express.Request, res: express.Response) => {
-    try {
-        const { prompt, aspectRatio, resolution } = req.body;
-        if (!prompt) {
-            return res.status(400).json({ error: 'Prompt is required for video generation.' });
-        }
-        
-        const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        const operationPromise = llm.startVideoGeneration(prompt, aspectRatio, resolution);
-
-        videoTasks[taskId] = {
-            startTime: Date.now(),
-            status: 'queued',
-            operationPromise,
-            prompt,
-        };
-        
-        res.status(202).json({ taskId });
-
-    } catch (error) {
-        console.error('Video generation start error:', error);
-        res.status(500).json({ error: (error as Error).message });
-    }
-});
-
-
-// GET /api/generate/video/stream/:taskId
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.get('/video/stream/:taskId', async (req: express.Request, res: express.Response) => {
-    const { taskId } = req.params;
-    const task = videoTasks[taskId];
-
-    if (!task) {
-        return res.status(404).json({ error: 'Task not found.' });
-    }
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-
-    const sendEvent = (data: object) => {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
-
-    try {
-        const operation = await task.operationPromise;
-        // Re-initialize the client inside the long-running request to ensure it's not stale
-        // and has the correct API key, especially if keys can be rotated or changed.
-        if (!process.env.API_KEY) {
-            throw new Error("API_KEY is not configured on the server.");
-        }
-        const localAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        
-        sendEvent({ progress: 'Your video is in the queue. This may take a few minutes...' });
-        
-        let polledOperation = operation;
-        while (!polledOperation.done) {
-            sendEvent({ progress: `Rendering video... (${new Date().toLocaleTimeString()})` });
-            await new Promise(resolve => setTimeout(resolve, 10000));
-            polledOperation = await localAi.operations.getVideosOperation({ operation: polledOperation });
-        }
-
-        sendEvent({ progress: 'Video generated! Preparing for download...' });
-
-        const downloadLink = polledOperation.response?.generatedVideos?.[0]?.video?.uri;
-        if (!downloadLink) {
-            throw new Error("Video generation completed, but no download link was provided.");
-        }
-        
-        task.finalDownloadLink = downloadLink;
-        sendEvent({ finalUrl: `/api/generate/download/${taskId}` });
-
-    } catch (error) {
-        console.error(`Error in SSE for task ${taskId}:`, error);
-        sendEvent({ error: (error as Error).message });
-    } finally {
-        res.end();
-        setTimeout(() => delete videoTasks[taskId], 60000);
-    }
-});
-
-// GET /api/generate/download/:taskId
-// FIX: Used express.Request and express.Response to correctly type the handler arguments.
-router.get('/download/:taskId', async (req: express.Request, res: express.Response) => {
-    const { taskId } = req.params;
-    const task = videoTasks[taskId];
-
-    if (!task || !task.finalDownloadLink) {
-        return res.status(404).json({ error: 'Download link not found or expired.' });
-    }
-
-    try {
-        const downloadUrlWithKey = `${task.finalDownloadLink}&key=${process.env.API_KEY}`;
-        const videoResponse = await fetch(downloadUrlWithKey);
-
-        if (!videoResponse.ok || !videoResponse.body) {
-            throw new Error(`Failed to fetch video from source: ${videoResponse.statusText}`);
-        }
-
-        res.setHeader('Content-Type', videoResponse.headers.get('Content-Type') || 'video/mp4');
-        res.setHeader('Content-Length', videoResponse.headers.get('Content-Length') || '');
-        
-        const reader = videoResponse.body.getReader();
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            res.write(value);
-        }
-        res.end();
-
-    } catch (error) {
-        console.error(`Failed to proxy download for task ${taskId}:`, error);
-        res.status(500).send('Failed to download video.');
     }
 });
