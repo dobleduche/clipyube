@@ -1,5 +1,5 @@
 {
-  "name": "clip-yube:-ai-powered-image-&-dynamic-content-editor",
+  "name": "clipyube-ai-powered-image-dynamic-content-editor",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -22,7 +22,6 @@
     "openai": "^4.52.7",
     "fluent-ffmpeg": "^2.2.0",
     "redis": "^5.9.0",
-    "lib": "^5.1.0",
     "use-debounce": "^10.0.6",
     "@runwayml/sdk": "^3.7.0",
     "bull": "^4.16.5"
