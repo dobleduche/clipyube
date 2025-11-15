@@ -42,11 +42,11 @@ export const thumbnailQueue = createQueue('thumbnail', defaultQueueOptions);
 export const renderQueue = createQueue('render', defaultQueueOptions);
 export const publishQueue = createQueue('publish', defaultQueueOptions);
 
-// Queues from the original clip pipeline
-export const automationQueue = createQueue('clipyube:automation', defaultQueueOptions);
-export const transcodeQueue = createQueue('clipyube:transcode', defaultQueueOptions);
-export const thumbQueue = createQueue('clipyube:thumbnail', defaultQueueOptions); // Distinct from thumbnailQueue
-export const captionQueue = createQueue('clipyube:caption', defaultQueueOptions);
+// Queues from the original clip pipeline (renamed to remove colons)
+export const automationQueue = createQueue('automation', defaultQueueOptions);
+export const transcodeQueue = createQueue('transcode', defaultQueueOptions);
+export const thumbQueue = createQueue('thumbnail', defaultQueueOptions); // Merged with thumbnailQueue
+export const captionQueue = createQueue('caption', defaultQueueOptions);
 
 // Function to schedule the main automation task
 export async function scheduleAutomation(intervalMs: number): Promise<void> {
