@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, generateVideoWithVeo } from '../services/geminiService';
+import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, generateVideoWithVeo, searchImages } from '../services/geminiService';
 import { generateVideoWithRunway } from '../services/runwayService';
 import { fileToBase64, dataUrlToFile } from '../utils/fileUtils';
 import Loader from './Loader';
-import { UploadIcon, MagicWandIcon, TrashIcon, DownloadIcon, CropIcon, PlusIcon, MinusIcon, UndoIcon, RedoIcon, FilterIcon, UpscaleIcon, AdjustmentsIcon, BackgroundEraserIcon, ColorSplashIcon, StyleTransferIcon, SaveIcon, LoadIcon, DevicePreviewIcon, VideoIcon, WatermarkIcon, XIcon, BrushIcon, ResetZoomIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
+import { UploadIcon, MagicWandIcon, TrashIcon, DownloadIcon, CropIcon, PlusIcon, MinusIcon, UndoIcon, RedoIcon, FilterIcon, UpscaleIcon, AdjustmentsIcon, BackgroundEraserIcon, ColorSplashIcon, StyleTransferIcon, SaveIcon, LoadIcon, DevicePreviewIcon, VideoIcon, WatermarkIcon, XIcon, BrushIcon, ResetZoomIcon, ArrowLeftIcon, ArrowRightIcon, SearchIcon } from './Icons';
 import ExampleCarousel from './ExampleCarousel';
 import ToolOptionsPanel from './ToolOptionsPanel';
 import { useAppContext } from '../context/AppContext';
@@ -17,7 +17,7 @@ const EDITOR_STATE_KEY = 'clipyube-editor-state';
 const CUSTOM_FILTERS_KEY = 'clipyube-custom-filters';
 const VIDEO_PRESETS_KEY = 'clipyube-video-presets';
 
-type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'devicepreview' | 'video' | 'watermark' | 'ai-edit' | 'effects' | 'brush';
+type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'devicepreview' | 'video' | 'watermark' | 'ai-edit' | 'effects' | 'brush' | 'image-search';
 
 const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
     if (!(error instanceof Error)) {
@@ -308,6 +308,11 @@ export const ImageEditor: React.FC = () => {
     const lastDrawingPointRef = useRef<{ x: number, y: number } | null>(null);
     const [brushHistory, setBrushHistory] = useState<string[]>([]);
     const [brushHistoryIndex, setBrushHistoryIndex] = useState<number>(-1);
+
+    // Image Search state
+    const [imageSearchQuery, setImageSearchQuery] = useState<string>('');
+    const [imageSearchResults, setImageSearchResults] = useState<string[]>([]);
+    const [isSearchingImages, setIsSearchingImages] = useState<boolean>(false);
 
 
     // Mock for paid feature
@@ -930,6 +935,35 @@ export const ImageEditor: React.FC = () => {
         }
     }, [videoPrompt, videoStyle, currentHistoryState, videoProvider, videoAspectRatio, videoResolution, caption]);
 
+    // Image Search Logic
+    const handleImageSearch = async () => {
+        if (!imageSearchQuery.trim()) {
+            setError('Please enter a search query.');
+            return;
+        }
+        setIsSearchingImages(true);
+        setError(null);
+        setImageSearchResults([]);
+        try {
+            const results = await searchImages(imageSearchQuery);
+            if (results.length === 0) {
+                setError('No images found for your query.');
+            }
+            setImageSearchResults(results);
+        } catch (err) {
+            setError(getFriendlyErrorMessage(err, 'Image Search'));
+        } finally {
+            setIsSearchingImages(false);
+        }
+    };
+
+    const handleSelectSearchedImage = async (base64Data: string) => {
+        const dataUrl = `data:image/jpeg;base64,${base64Data}`;
+        const file = await dataUrlToFile(dataUrl, 'searched-image.jpeg');
+        processFile(file);
+        setActiveTool(null);
+    };
+
     // Brush Tool Logic
     const handleClearBrush = useCallback(() => {
         const canvas = drawingCanvasRef.current;
@@ -1243,6 +1277,10 @@ export const ImageEditor: React.FC = () => {
                             <BrushIcon />
                              <span className="mt-1">Brush</span>
                         </button>
+                         <button onClick={() => toggleTool('image-search')} className={toolButtonClasses('image-search')}>
+                            <SearchIcon />
+                            <span className="mt-1">Search</span>
+                        </button>
                         <button onClick={() => toggleTool('video')} className={toolButtonClasses('video')}>
                             <VideoIcon />
                              <span className="mt-1">Video</span>
@@ -1377,6 +1415,54 @@ export const ImageEditor: React.FC = () => {
                                 Clear
                             </button>
                         </div>
+                    </div>
+                </ToolOptionsPanel>
+                
+                <ToolOptionsPanel title="Image Search" icon={<SearchIcon />} isOpen={toolIsActive('image-search')} onToggle={() => toggleTool('image-search')}>
+                    <div className="space-y-4">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={imageSearchQuery}
+                                onChange={(e) => setImageSearchQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && !isSearchingImages && handleImageSearch()}
+                                placeholder="e.g., A photorealistic cat astronaut"
+                                className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg"
+                                disabled={isSearchingImages}
+                            />
+                            <button
+                                onClick={handleImageSearch}
+                                disabled={isSearchingImages || !imageSearchQuery.trim()}
+                                className="flex items-center justify-center gap-2 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-500 disabled:bg-slate-600 transition-colors"
+                            >
+                                {isSearchingImages ? <Loader /> : <SearchIcon />}
+                            </button>
+                        </div>
+
+                        {isSearchingImages && (
+                            <div className="text-center p-4">
+                                <p className="text-slate-300">Generating images...</p>
+                            </div>
+                        )}
+
+                        {imageSearchResults.length > 0 && (
+                            <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
+                                {imageSearchResults.map((base64, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleSelectSearchedImage(base64)}
+                                        className="aspect-square rounded-md overflow-hidden ring-1 ring-transparent hover:ring-cyan-400 focus:ring-cyan-400 focus:outline-none transition-all"
+                                        aria-label={`Select generated image ${index + 1}`}
+                                    >
+                                        <img
+                                            src={`data:image/jpeg;base64,${base64}`}
+                                            alt={`Search result ${index + 1}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </ToolOptionsPanel>
 

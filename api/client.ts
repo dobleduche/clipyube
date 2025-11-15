@@ -42,6 +42,24 @@ export const generateImageContent = async (
 };
 
 /**
+ * Calls the backend to search for images based on a prompt.
+ */
+export const searchImagesRequest = async (prompt: string): Promise<{ images: string[] }> => {
+    const response = await fetch(`${API_BASE_URL}/api/generate/search-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to search for images.');
+    }
+
+    return response.json();
+};
+
+/**
  * Generates a video by starting a task on the backend and listening for progress via SSE.
  */
 export const generateVideoWithVeo = (

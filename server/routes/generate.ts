@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+// FIX: Changed express import to default import to fix type resolution issues.
+import express from 'express';
 import * as llm from '../adapters/llm';
 import { GoogleGenAI } from '@google/genai';
 import * as analysisService from '../services/analysisService';
@@ -10,7 +11,8 @@ export const router = express.Router();
 const videoTasks: { [key: string]: any } = {};
 
 // POST /api/generate/text - Generic text generation
-router.post('/text', async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post('/text', async (req: express.Request, res: express.Response) => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -26,7 +28,8 @@ router.post('/text', async (req: Request, res: Response) => {
 
 // POST /api/generate/blog
 // New endpoint with server-side validation
-router.post('/blog', async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post('/blog', async (req: express.Request, res: express.Response) => {
     try {
         const { idea } = req.body;
         if (!idea) {
@@ -79,7 +82,8 @@ router.post('/blog', async (req: Request, res: Response) => {
 
 
 // POST /api/generate/image
-router.post('/image', async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post('/image', async (req: express.Request, res: express.Response) => {
     try {
         const { base64Data, mimeType, prompt, operationDescription, styleBase64, styleMimeType } = req.body;
         if (!base64Data || !mimeType || !prompt) {
@@ -93,8 +97,25 @@ router.post('/image', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/generate/search-images
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post('/search-images', async (req: express.Request, res: express.Response) => {
+    try {
+        const { prompt } = req.body;
+        if (!prompt) {
+            return res.status(400).json({ error: 'Prompt is required for image search.' });
+        }
+        const images = await llm.generateImages(prompt, 4);
+        res.json({ images });
+    } catch (error) {
+        console.error('Image search error:', error);
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
+
 // POST /api/generate/video
-router.post('/video', async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post('/video', async (req: express.Request, res: express.Response) => {
     try {
         const { prompt, aspectRatio, resolution } = req.body;
         if (!prompt) {
@@ -122,7 +143,8 @@ router.post('/video', async (req: Request, res: Response) => {
 
 
 // GET /api/generate/video/stream/:taskId
-router.get('/video/stream/:taskId', async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.get('/video/stream/:taskId', async (req: express.Request, res: express.Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];
 
@@ -177,7 +199,8 @@ router.get('/video/stream/:taskId', async (req: Request, res: Response) => {
 });
 
 // GET /api/generate/download/:taskId
-router.get('/download/:taskId', async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.get('/download/:taskId', async (req: express.Request, res: express.Response) => {
     const { taskId } = req.params;
     const task = videoTasks[taskId];
 

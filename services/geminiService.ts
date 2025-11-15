@@ -1,4 +1,4 @@
-import { generateImageContent, generateVideoWithVeo as generateVideoWithVeoClient } from "../api/client";
+import { generateImageContent, generateVideoWithVeo as generateVideoWithVeoClient, searchImagesRequest } from "../api/client";
 
 /**
  * Edits an image using a text prompt via the secure API client.
@@ -45,6 +45,15 @@ export const applyStyleTransfer = async (
 ): Promise<string> => {
     const prompt = "Apply the artistic style of the second image (the style image) to the first image (the content image). Transfer the textures, color palette, and overall aesthetic while preserving the recognizable shapes and composition of the content image.";
     return generateImageContent(contentBase64, contentMimeType, prompt, "style transfer", styleBase64, styleMimeType);
+};
+
+/**
+ * Searches for images from a text prompt using the Google Imagen model via the secure API client.
+ * Returns an array of base64 strings (without the data URL prefix).
+ */
+export const searchImages = async (prompt: string): Promise<string[]> => {
+    const result = await searchImagesRequest(prompt);
+    return result.images;
 };
 
 /**

@@ -129,3 +129,33 @@ export const startVideoGeneration = async (
         throw new Error(`An unknown error occurred during Veo video generation.`);
     }
 };
+
+/**
+ * Generates images from a text prompt using Imagen.
+ */
+export const generateImages = async (prompt: string, numberOfImages: number = 4): Promise<string[]> => {
+  try {
+    const localAi = getAiClient();
+    const response = await localAi.models.generateImages({
+      model: 'imagen-4.0-generate-001',
+      prompt,
+      config: {
+        numberOfImages,
+        outputMimeType: 'image/jpeg',
+        aspectRatio: '1:1',
+      },
+    });
+
+    if (!response.generatedImages || response.generatedImages.length === 0) {
+      throw new Error('Imagen API did not return any images.');
+    }
+
+    return response.generatedImages.map(img => img.image.imageBytes);
+  } catch (error) {
+    console.error(`Error in LLM adapter for image generation:`, error);
+    if (error instanceof Error) {
+        throw new Error(`Imagen API Error: ${error.message}`);
+    }
+    throw new Error(`An unknown Imagen API error occurred.`);
+  }
+};

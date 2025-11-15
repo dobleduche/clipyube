@@ -1,6 +1,7 @@
 // server/index.ts
 import "dotenv/config";
-import express, { ErrorRequestHandler, Request, Response, NextFunction } from "express";
+// FIX: Changed express import to default import to fix type resolution issues.
+import express from "express";
 import cors from "cors";
 import { router as generate } from "./routes/generate";
 import { router as discovery } from "./routes/discovery";
@@ -21,12 +22,14 @@ const bootWorkers = () => {
   ];
 
   workers.forEach((worker) => {
-    try {
-      require(worker);
-      console.log(`[Server] Booted worker: ${worker}`);
-    } catch (error) {
-      console.error(`[Server] Failed to boot worker ${worker}:`, error);
-    }
+    // FIX: Cannot find name 'require'. Replaced with dynamic import for ES module compatibility.
+    import(worker)
+      .then(() => {
+        console.log(`[Server] Booted worker: ${worker}`);
+      })
+      .catch((error) => {
+        console.error(`[Server] Failed to boot worker ${worker}:`, error);
+      });
   });
 };
 
@@ -54,16 +57,18 @@ app.use("/api/clips", clips);
 app.use("/api/automation", automation);
 
 // Health check
-app.get("/api/health", (_req: Request, res: Response) =>
+// FIX: Used express.Response to correctly type the response object.
+app.get("/api/health", (_req: express.Request, res: express.Response) =>
   res.status(200).json({ status: "ok" })
 );
 
 // Central error handler
-const errorHandler: ErrorRequestHandler = (
+// FIX: Used express types to correctly type the error handler arguments.
+const errorHandler: express.ErrorRequestHandler = (
   err: any,
-  _req: Request,
-  res: Response,
-  _next: NextFunction
+  _req: express.Request,
+  res: express.Response,
+  _next: express.NextFunction
 ) => {
   const status = err.status || 500;
   const message = err.message || "Internal Server Error";

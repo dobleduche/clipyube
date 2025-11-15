@@ -1,9 +1,11 @@
-import express, { Request, Response } from 'express';
+// FIX: Changed express import to default import to fix type resolution issues.
+import express from 'express';
 
 export const router = express.Router();
 
 // POST /api/publish/youtube
-router.post('/youtube', (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post('/youtube', (req: express.Request, res: express.Response) => {
     const { draftId, title, description } = req.body;
     console.log(`Received request to publish draft ${draftId} to YouTube with title: ${title}`);
     
@@ -16,7 +18,8 @@ router.post('/youtube', (req: Request, res: Response) => {
 });
 
 // POST /api/publish/cms
-router.post('/cms', (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post('/cms', (req: express.Request, res: express.Response) => {
     const { draftId, content } = req.body;
     console.log(`Received request to publish draft ${draftId} to CMS.`);
     

@@ -1,5 +1,6 @@
 // server/routes/clips.ts
-import express, { Request, Response } from "express";
+// FIX: Changed express import to default import to fix type resolution issues.
+import express from "express";
 import { Redis } from "ioredis"; // Ensure ioredis types are installed
 import { Queue } from "bull"; // Adjust based on your queue library (e.g., Bull)
 import { redisConnection, automationQueue as automationQ } from "../queues";
@@ -25,7 +26,8 @@ const r: Redis = redisConnection;
  * Body: { url: string; tenant?: string }
  * Push a clip URL into the inbox and nudge the automation queue.
  */
-router.post("/ingest", async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.post("/ingest", async (req: express.Request, res: express.Response) => {
   const { url, tenant = "default" } = (req.body ?? {}) as { url?: string; tenant?: string };
   if (!url || typeof url !== "string") {
     return res.status(400).json({ ok: false, error: "URL is required" });
@@ -47,7 +49,8 @@ router.post("/ingest", async (req: Request, res: Response) => {
  * GET /api/clips/logs/:tenant
  * Server-Sent Events stream for real-time logs filtered by tenant.
  */
-router.get("/logs/:tenant", async (req: Request, res: Response) => {
+// FIX: Used express.Request and express.Response to correctly type the handler arguments.
+router.get("/logs/:tenant", async (req: express.Request, res: express.Response) => {
   const { tenant } = req.params;
 
   // Basic SSE headers
