@@ -1,26 +1,34 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-let ai: GoogleGenAI | null = null;
+// Module-level cache for the client instance. It starts as null.
+let aiClientInstance: GoogleGenAI | null = null;
 
 const imageModel = 'gemini-2.5-flash-image';
 const proModel = 'gemini-2.5-pro';
 
 /**
- * Helper function to lazily initialize and get the GoogleGenAI client.
- * Throws a user-friendly error if the API key is missing.
+ * Lazily initializes and returns a singleton instance of the GoogleGenAI client.
+ * This prevents the server from crashing on startup if the API_KEY is missing.
+ * An error will only be thrown when an actual API call is attempted.
  */
 const getAiClient = (): GoogleGenAI => {
-    if (ai) {
-        return ai; // Return cached client
+    // Return the cached instance if it already exists
+    if (aiClientInstance) {
+        return aiClientInstance;
     }
 
-    if (process.env.API_KEY) {
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        return ai;
+    // Prioritize GEMINI_API_KEY, fallback to API_KEY for broader compatibility.
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+
+    // If no instance, try to create one
+    if (apiKey) {
+        // Create the instance and cache it for subsequent calls
+        aiClientInstance = new GoogleGenAI({ apiKey });
+        return aiClientInstance;
     }
 
-    // If we reach here, the key is missing.
-    throw new Error("Gemini API client is not initialized. Please ensure the API_KEY environment variable is set correctly on the server.");
+    // If we reach here, the key is missing. Throw a user-friendly error.
+    throw new Error("Gemini API client is not initialized. Please ensure either GEMINI_API_KEY or API_KEY environment variable is set correctly on the server.");
 };
 
 /**
@@ -35,7 +43,7 @@ export const generateImageContent = async (
   styleMimeType?: string
 ): Promise<string> => {
   try {
-    const localAi = getAiClient();
+    const ai = getAiClient();
     const parts: any[] = [
         { inlineData: { data: base64Data, mimeType: mimeType } },
     ];
@@ -46,7 +54,7 @@ export const generateImageContent = async (
 
     parts.push({ text: prompt });
 
-    const response = await localAi.models.generateContent({
+    const response = await ai.models.generateContent({
       model: imageModel,
       contents: { parts },
       config: {
@@ -80,11 +88,11 @@ export const generateImageContent = async (
  * Generates text content on the server with retry logic.
  */
 export const generateTextContent = async (prompt: string, retries = 1): Promise<string> => {
-    const localAi = getAiClient();
+    const ai = getAiClient();
     let lastError: Error | null = null;
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await localAi.models.generateContent({
+            const response = await ai.models.generateContent({
                 model: proModel,
                 contents: prompt,
             });
@@ -105,8 +113,8 @@ export const generateTextContent = async (prompt: string, retries = 1): Promise<
  */
 export const generateImages = async (prompt: string, numberOfImages: number = 4): Promise<string[]> => {
   try {
-    const localAi = getAiClient();
-    const response = await localAi.models.generateImages({
+    const ai = getAiClient();
+    const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
       prompt,
       config: {

@@ -27,14 +27,14 @@ const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
     const message = error.message; // Keep case for API key names
     const lowerMessage = message.toLowerCase();
 
-    if (lowerMessage.includes('api key not valid') || lowerMessage.includes('api_key_invalid') || lowerMessage.includes('requested entity was not found') || message.includes('RUNWAY_API_KEY')) {
-        let keyType = 'API';
-        if (operation.toLowerCase().includes('video')) {
-            keyType = 'Runway';
-        } else {
-            keyType = 'Gemini';
-        }
-        return `API Key Error: Your ${keyType} key seems to be invalid or missing. Please ensure it is configured correctly in your environment.`;
+    // Specific check for Runway API Key. The service throws an error with this exact variable name.
+    if (message.includes('RUNWAY_API_KEY')) {
+        return `Runway API Key Error: The 'RUNWAY_API_KEY' is missing or invalid. Please configure it in your environment to enable video generation.`;
+    }
+
+    // Specific check for Gemini API Key from our backend proxy or Gemini itself.
+    if (message.includes('API_KEY') || lowerMessage.includes('api key not valid') || lowerMessage.includes('api_key_invalid') || lowerMessage.includes('requested entity was not found')) {
+        return `Gemini API Key Error: Your key seems to be invalid or missing. Please ensure the 'API_KEY' is configured correctly on the server for image editing features.`;
     }
 
     if (lowerMessage.includes('safety policies') || lowerMessage.includes('prompt was blocked') || lowerMessage.includes('candidate was blocked')) {

@@ -1,14 +1,15 @@
-// FIX: Corrected Express type usage to resolve conflicts.
-// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+// server/routes/generate.ts
+// FIX: Add explicit type imports for Express handlers
 import express, { Request, Response } from 'express';
 import * as llm from '../adapters/llm';
 import * as analysisService from '../services/analysisService';
 import { sanitizeHtml } from '../../utils/sanitize';
+import * as db from '../db';
 
 export const router = express.Router();
 
 // POST /api/generate/text - Generic text generation
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/text', async (req: Request, res: Response) => {
     try {
         const { prompt } = req.body;
@@ -25,7 +26,7 @@ router.post('/text', async (req: Request, res: Response) => {
 
 // POST /api/generate/blog
 // New endpoint with server-side validation
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/blog', async (req: Request, res: Response) => {
     try {
         const { idea } = req.body;
@@ -34,11 +35,14 @@ router.post('/blog', async (req: Request, res: Response) => {
         }
 
         const prompt = `
-            You are an expert content creator and SEO specialist. Write a comprehensive, engaging blog post (minimum 1000 words) based on this idea:
+            You are an expert content creator and SEO specialist writing for a 7-minute read time. Your task is to write a comprehensive, engaging blog post of approximately 1400 words based on this grounded idea:
             Title: "${idea.title}"
-            Brief: "${idea.brief}"
-            Keywords: ${idea.keywords.join(', ')}
-            The output must be a single block of clean HTML, including <p>, <h3>, <h4>, <ul>, <ol>, <li>, <strong>, and at least 3 authoritative <a> backlinks. Do not include a main <h1> or <h2> title.
+            Brief/Summary of Source Material: "${idea.brief}"
+            Keywords to include naturally: ${idea.keywords.join(', ')}
+            
+            The output must be a single block of clean, well-structured HTML. Use tags like <p>, <h3>, <h4>, <ul>, <ol>, <li>, and <strong>.
+            Crucially, you must include at least 3 authoritative <a> backlinks to relevant, real-world sources that support the content.
+            Do not include a main <h1> or <h2> title tag in your output.
         `;
         
         const rawContent = await llm.generateTextContent(prompt, 2); // Allow for retries
@@ -68,6 +72,19 @@ router.post('/blog', async (req: Request, res: Response) => {
             content: sanitizedContent,
             ...validation.metadata
         };
+
+        // Persist the new blog post to the database
+        const existingPosts = db.getTable('blogPosts');
+        if (!existingPosts.some(p => p.slug === blogPost.slug)) {
+            // Add to the beginning of the array so it appears first
+            existingPosts.unshift(blogPost);
+        } else {
+            // Optionally, update existing post
+            const index = existingPosts.findIndex(p => p.slug === blogPost.slug);
+            if (index !== -1) {
+                existingPosts[index] = blogPost;
+            }
+        }
         
         res.json({ blogPost });
 
@@ -79,7 +96,7 @@ router.post('/blog', async (req: Request, res: Response) => {
 
 
 // POST /api/generate/image
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/image', async (req: Request, res: Response) => {
     try {
         const { base64Data, mimeType, prompt, operationDescription, styleBase64, styleMimeType } = req.body;
@@ -95,7 +112,7 @@ router.post('/image', async (req: Request, res: Response) => {
 });
 
 // POST /api/generate/search-images
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/search-images', async (req: Request, res: Response) => {
     try {
         const { prompt } = req.body;

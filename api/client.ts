@@ -121,6 +121,26 @@ export const generateBlogPostRequest = async (idea: ContentIdea): Promise<{blogP
     return data;
 };
 
+export const getBlogPostsRequest = async (): Promise<BlogPost[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/blog`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch blog posts from server.');
+    }
+    return response.json();
+};
+
+export const deleteBlogPostRequest = async (slug: string): Promise<Response> => {
+    const response = await fetch(`${API_BASE_URL}/api/blog/${slug}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete blog post on server.');
+    }
+    return response;
+};
+
 export const runViralAgentRequest = async (
     niche: string,
     platforms: string[],

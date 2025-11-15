@@ -1,8 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { BlogPost } from '../pages/BlogPage';
-import { initialBlogPosts } from '../data/blogData';
 import { ContentIdea } from '../services/viralAgentService';
-import { generateBlogPostRequest } from '../api/client';
+import { generateBlogPostRequest, getBlogPostsRequest, deleteBlogPostRequest } from '../api/client';
 
 type AutomationCommand = {
   type: 'video';
@@ -22,19 +21,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const BLOG_POSTS_KEY = 'clipyube-blog-posts';
-
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [route, setRoute] = useState(window.location.hash || '/');
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => {
-    try {
-      const savedPosts = localStorage.getItem(BLOG_POSTS_KEY);
-      return savedPosts ? JSON.parse(savedPosts) : initialBlogPosts;
-    } catch (e) {
-      console.error("Failed to load blog posts from localStorage", e);
-      return initialBlogPosts;
-    }
-  });
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [automation, setAutomation] = useState<AutomationCommand>(null);
   
   useEffect(() => {
@@ -45,13 +34,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // Fetch posts from the server on initial load
   useEffect(() => {
-    try {
-      localStorage.setItem(BLOG_POSTS_KEY, JSON.stringify(blogPosts));
-    } catch (e) {
-      console.error("Failed to save blog posts to localStorage", e);
-    }
-  }, [blogPosts]);
+    const fetchPosts = async () => {
+        try {
+            const posts = await getBlogPostsRequest();
+            setBlogPosts(posts);
+        } catch (error) {
+            console.error("Failed to fetch blog posts from server:", error);
+            // Optionally, set an error state to show a message to the user
+        }
+    };
+    fetchPosts();
+  }, []);
+
 
   const navigateTo = (newRoute: string) => {
     window.scrollTo(0, 0);
@@ -62,7 +58,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { blogPost: newPost } = await generateBlogPostRequest(idea);
 
     setBlogPosts(prevPosts => {
-        if (prevPosts.some(p => p.slug === newPost.slug)) return prevPosts;
+        // Add the new post only if it doesn't already exist
+        if (prevPosts.some(p => p.slug === newPost.slug)) {
+          return prevPosts.map(p => p.slug === newPost.slug ? newPost : p); // Update if exists
+        }
         return [newPost, ...prevPosts];
     });
 
@@ -70,9 +69,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return newPost.slug;
   };
 
-  const deleteBlogPost = (slug: string) => {
+  const deleteBlogPost = async (slug: string) => {
     if (window.confirm('Are you sure you want to delete this blog post? This cannot be undone.')) {
-        setBlogPosts(prev => prev.filter(p => p.slug !== slug));
+        try {
+            await deleteBlogPostRequest(slug);
+            setBlogPosts(prev => prev.filter(p => p.slug !== slug));
+        } catch (error) {
+            console.error("Failed to delete blog post:", error);
+            alert(`Error deleting post: ${(error as Error).message}`);
+        }
     }
   };
 

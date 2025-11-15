@@ -1,6 +1,5 @@
 // server/routes/clips.ts
-// FIX: Corrected Express type usage to resolve conflicts.
-// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+// FIX: Add explicit type imports for Express handlers
 import express, { Request, Response } from "express";
 import { Redis } from "ioredis";
 import { Queue } from "bullmq";
@@ -19,7 +18,7 @@ const r: Redis = redisConnection;
  * Body: { url: string; tenant?: string }
  * Push a clip URL into the inbox and nudge the automation queue.
  */
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post("/ingest", async (req: Request, res: Response) => {
   const { url, tenant = "default" } = (req.body ?? {}) as { url?: string; tenant?: string };
   if (!url || typeof url !== "string") {
@@ -42,7 +41,7 @@ router.post("/ingest", async (req: Request, res: Response) => {
  * GET /api/clips/logs/:tenant
  * Server-Sent Events stream for real-time logs filtered by tenant.
  */
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.get("/logs/:tenant", async (req: Request, res: Response) => {
   const { tenant } = req.params;
 

@@ -1,6 +1,5 @@
 // server/routes/automation.ts
-// FIX: Corrected Express type usage to resolve conflicts.
-// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+// FIX: Add explicit type imports for Express handlers
 import express, { Request, Response } from 'express';
 import * as db from '../db';
 import { discoveryQueue, scheduleAutomation, removeAutomationSchedule } from '../queues';
@@ -8,19 +7,19 @@ import { discoveryQueue, scheduleAutomation, removeAutomationSchedule } from '..
 export const router = express.Router();
 
 // GET /api/automation/status
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.get('/status', (_req: Request, res: Response) => {
     res.json(db.getAutomationState());
 });
 
 // GET /api/automation/logs
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.get('/logs', (_req: Request, res: Response) => {
     res.json(db.getAutomationState().logs);
 });
 
 // POST /api/automation/start
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/start', async (_req: Request, res: Response) => {
     const state = db.getAutomationState();
     if (state.isRunning) {
@@ -31,7 +30,14 @@ router.post('/start', async (_req: Request, res: Response) => {
     db.addAutomationLog('Automation engine started by user.', 'success');
     
     const settings = db.getSettings();
-    await scheduleAutomation(settings.automationInterval);
+    try {
+        await scheduleAutomation(settings.automationInterval);
+    } catch (e) {
+        db.setAutomationRunning(false); // Rollback state on failure
+        const message = e instanceof Error ? e.message : "An unknown error occurred";
+        db.addAutomationLog(`Failed to schedule automation job: ${message}`, 'error');
+        return res.status(500).json({ error: `Failed to schedule automation job: ${message}. Is Redis running?`});
+    }
 
     // Trigger an immediate run without waiting for the schedule
     await discoveryQueue.add('on-demand-discovery', {});
@@ -40,7 +46,7 @@ router.post('/start', async (_req: Request, res: Response) => {
 });
 
 // POST /api/automation/stop
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/stop', async (_req: Request, res: Response) => {
     const state = db.getAutomationState();
     if (!state.isRunning) {
@@ -55,13 +61,13 @@ router.post('/stop', async (_req: Request, res: Response) => {
 });
 
 // GET /api/automation/settings
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.get('/settings', (_req: Request, res: Response) => {
     res.json(db.getSettings());
 });
 
 // POST /api/automation/settings
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/settings', (req: Request, res: Response) => {
     const newSettings = req.body;
     const updatedSettings = db.updateSettings(newSettings);

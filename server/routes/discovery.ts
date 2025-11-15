@@ -1,6 +1,5 @@
 // server/routes/discovery.ts
-// FIX: Corrected Express type usage to resolve conflicts.
-// FIX: Import Request and Response types from express to resolve conflicts with other global types.
+// FIX: Add explicit type imports for Express handlers
 import express, { Request, Response } from 'express';
 import { discoveryQueue } from '../queues';
 
@@ -8,7 +7,7 @@ export const router = express.Router();
 
 // POST /api/discovery/run
 // This endpoint now enqueues a job instead of running the discovery synchronously.
-// FIX: Use Request and Response types from express.
+// FIX: Use imported Request and Response types
 router.post('/run', async (req: Request, res: Response) => {
     try {
         const { niche, platforms, geo = 'US' } = req.body;

@@ -2,6 +2,8 @@
 // Simple in-memory database for demonstration purposes.
 
 import { Settings } from '../../context/SettingsContext';
+import { BlogPost } from '../../pages/BlogPage';
+import { initialBlogPosts } from '../../data/blogData';
 
 // Default settings that can be overridden by user
 const defaultSettings: Settings = {
@@ -26,6 +28,7 @@ interface DbData {
   drafts: any[];
   publishes: any[];
   thumbnails: any[];
+  blogPosts: BlogPost[];
   // Application State
   automation: {
     isRunning: boolean;
@@ -40,6 +43,7 @@ const db: DbData = {
   drafts: [],
   publishes: [],
   thumbnails: [],
+  blogPosts: initialBlogPosts,
   automation: {
     isRunning: false,
     logs: [],

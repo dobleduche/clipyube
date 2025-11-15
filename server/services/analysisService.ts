@@ -1,7 +1,7 @@
 // server/services/analysisService.ts
 
 // Export constants for configurability
-export const MIN_WORD_COUNT = 800;
+export const MIN_WORD_COUNT = 1400;
 export const MIN_LINKS = 2;
 export const WORDS_PER_MINUTE = 200; // Average reading speed
 

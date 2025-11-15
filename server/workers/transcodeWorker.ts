@@ -1,7 +1,7 @@
 // server/workers/transcodeWorker.ts
 import { Worker } from "bullmq";
 import { redisConnection as connection, transcodeQueue } from '../queues';
-import ffmpeg from "fluent-ffmpeg";
+import Ffmpeg from "fluent-ffmpeg";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs/promises"; // Use promises API
@@ -27,7 +27,7 @@ new Worker<TranscodeJobData, void, string>(transcodeQueue.name, async (job) => {
 
   try {
     await new Promise<void>((resolve, reject) => {
-      ffmpeg(src)
+      Ffmpeg(src)
         .videoCodec("libx264")
         .audioCodec("aac")
         .size("?x1080")
