@@ -1,91 +1,102 @@
-
 // server/workers/captionWorker.ts
 import { Worker } from "bullmq";
 import { redisConnection as connection, captionQueue } from '../queues';
 import OpenAI from "openai";
-import fs from "node:fs";
+import fs from "node:fs/promises"; // Use promises API
 import path from "node:path";
+import os from "node:os";
 import http from "node:http";
 import https from "node:https";
 
 let ai: OpenAI | null = null;
 
 // Lazy-initialization of the OpenAI client for this worker.
-// This prevents the worker import from crashing the server on startup if the key is missing.
 const getOpenAiClient = (): OpenAI => {
-    if (ai) {
-        return ai; // Return cached client
-    }
-    
-    if (process.env.OPENAI_API_KEY) {
-        ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        return ai;
-    }
-    
-    // If we reach here, the key is missing.
-    throw new Error("OpenAI API client is not initialized for the caption worker. Please ensure OPENAI_API_KEY is set.");
+  if (ai) return ai; // Return cached client
+
+  if (process.env.OPENAI_API_KEY) {
+    ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return ai;
+  }
+
+  throw new Error("OpenAI API client is not initialized for the caption worker. Please ensure OPENAI_API_KEY is set.");
 };
 
-function log(tenant: string, type: "info" | "success" | "error", message: string) {
-    console.log(`[CAPTION_WORKER:${tenant}] [${type}] ${message}`);
+interface JobData {
+  tenant: string;
+  id: string;
+  src: string;
 }
 
-console.log('Starting Caption Worker...');
+function log(tenant: string, type: "info" | "success" | "error", message: string) {
+  console.log(`[CAPTION_WORKER:${tenant}] [${new Date().toISOString()}] [${type}] ${message}`);
+}
 
-new Worker(captionQueue.name, async (job) => {
-    const { tenant, id, src } = job.data as any;
-    log(tenant, "info", "Captioning start");
+console.log(`[${new Date().toISOString()}] Starting Caption Worker...`);
 
-    const tempFilePath = path.join('/tmp', `caption-video-${id}.tmp`);
+new Worker<JobData, void, string>(captionQueue.name, async (job) => {
+  const { tenant, id, src } = job.data;
+  log(tenant, "info", `Captioning start for job ${job.id}`);
 
-    // The getOpenAiClient() call inside the try/catch block will now handle initialization and throw if the key is missing.
-    // This check is performed before the potentially long file download.
-    try {
-        getOpenAiClient();
-    } catch (e) {
-        const message = e instanceof Error ? e.message : "Configuration error";
-        log(tenant, "error", `Captioning failed: ${message}`);
-        throw e; // Fail the job immediately
-    }
+  const tempFilePath = path.join(os.tmpdir(), `caption-video-${id}.tmp`);
 
-    const fileStream = fs.createWriteStream(tempFilePath);
-    const client = src.startsWith('https') ? https : http;
+  // Initialize OpenAI client and validate before processing
+  let client: OpenAI;
+  try {
+    client = getOpenAiClient();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Configuration error";
+    log(tenant, "error", `Captioning failed: ${message}`);
+    throw e; // Fail the job immediately
+  }
 
-    await new Promise<void>((resolve, reject) => {
-        client.get(src, (response) => {
-            const { statusCode } = response;
-            if (statusCode !== 200) {
-                response.resume();
-                fileStream.close(() => fs.unlink(tempFilePath, () => {}));
-                return reject(new Error(`Failed to download file: Status Code ${statusCode}`));
-            }
-            response.pipe(fileStream);
-            fileStream.on('finish', () => fileStream.close((err) => err ? reject(err) : resolve()));
-            fileStream.on('error', (err) => {
-                fs.unlink(tempFilePath, () => {});
-                reject(err);
-            });
-        }).on('error', (err) => {
-            fs.unlink(tempFilePath, () => {});
-            reject(err);
-        });
+  // Download file
+  await fs.mkdir(os.tmpdir(), { recursive: true }); // Ensure temp dir exists
+  const fileStream = fs.createWriteStream(tempFilePath);
+  const protocol = src.startsWith('https') ? https : http;
+
+  try {
+    const response = await new Promise<http.IncomingMessage>((resolve, reject) => {
+      protocol.get(src, (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`Failed to download file: Status Code ${res.statusCode}`));
+        } else {
+          resolve(res);
+        }
+      }).on('error', reject);
     });
 
+    await new Promise<void>((resolve, reject) => {
+      response.pipe(fileStream);
+      fileStream.on('finish', () => resolve());
+      fileStream.on('error', (err) => reject(err));
+    });
+
+    // Transcribe
+    const transcription = await client.audio.transcriptions.create({
+      file: await fs.readFile(tempFilePath),
+      model: "whisper-1",
+    });
+    const transcript = transcription.text || "[No transcript found]";
+    log(tenant, "success", `Transcript for job ${job.id}: ${transcript.slice(0, 80)}…`);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error during transcription";
+    log(tenant, "error", `Captioning failed for job ${job.id}: ${message}`);
+    throw e;
+  } finally {
     try {
-        const client = getOpenAiClient(); // Get the initialized client
-        const resp = await client.audio.transcriptions.create({
-            file: fs.createReadStream(tempFilePath),
-            model: "whisper-1"
-        });
-        const transcript = resp.text || "[No transcript found]";
-        log(tenant, "success", `Transcript: ${transcript.slice(0, 80)}…`);
+      await fs.unlink(tempFilePath).catch(() => {}); // Silent fail on cleanup
     } catch (e) {
-        const message = e instanceof Error ? e.message : "Unknown error during transcription";
-        log(tenant, "error", `Captioning failed: ${message}`);
-        throw e;
-    } finally {
-        fs.unlink(tempFilePath, (err) => {
-            if (err) console.error(`Failed to delete temp file ${tempFilePath}:`, err);
-        });
+      log(tenant, "error", `Failed to clean up temp file ${tempFilePath}: ${e instanceof Error ? e.message : e}`);
     }
-}, { connection, concurrency: 2 });
+  }
+}, {
+  connection,
+  concurrency: 2,
+  // Add retry logic
+  settings: {
+    backoff: 5000, // 5-second delay between retries
+    attempts: 3, // Retry up to 3 times
+  },
+});

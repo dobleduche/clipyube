@@ -4,35 +4,59 @@ import { redisConnection, renderQueue, publishQueue } from '../queues';
 import { renderDraft, publishDraft } from '../services/pipeline';
 import * as db from '../db';
 
-console.log('Starting Pipeline Workers (Render & Publish)...');
+interface PipelineJobData {
+  draftId: string;
+}
+
+console.log(`[${new Date().toISOString()}] Starting Pipeline Workers (Render & Publish)...`);
 
 // Worker for the 'render' queue
-new Worker(renderQueue.name, async job => {
-    const { draftId } = job.data;
-    db.addAutomationLog(`Render worker processing job for draft ${draftId}`);
-    try {
-        await renderDraft(draftId);
-        // After rendering is complete, trigger the publish job
-        await publishQueue.add('publish-video', { draftId });
-        db.addAutomationLog(`Render successful. Enqueued publish job for draft ${draftId}.`);
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        db.addAutomationLog(`Render worker failed for draft ${draftId}: ${message}`, 'error');
-        throw error;
-    }
-}, { connection: redisConnection });
+new Worker<PipelineJobData, void, string>(renderQueue.name, async (job) => {
+  const { draftId } = job.data;
 
+  if (!draftId || typeof draftId !== 'string') {
+    throw new Error(`Invalid draftId in job ${job.id}: ${draftId}`);
+  }
+
+  db.addAutomationLog(`[${new Date().toISOString()}] Render worker processing job ${job.id} for draft ${draftId}`);
+  try {
+    await renderDraft(draftId);
+    await publishQueue.add('publish-video', { draftId });
+    db.addAutomationLog(`[${new Date().toISOString()}] Render successful for job ${job.id}. Enqueued publish job for draft ${draftId}.`);
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Render worker job ${job.id} failed for draft ${draftId}: ${message}`, 'error');
+    throw error;
+  }
+}, {
+  connection: redisConnection,
+  settings: {
+    backoff: 5000, // 5-second delay between retries
+    attempts: 3, // Retry up to 3 times
+  },
+});
 
 // Worker for the 'publish' queue
-new Worker(publishQueue.name, async job => {
-    const { draftId } = job.data;
-    db.addAutomationLog(`Publish worker processing job for draft ${draftId}`);
-    try {
-        await publishDraft(draftId);
-        db.addAutomationLog(`Successfully published draft ${draftId}.`, 'success');
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        db.addAutomationLog(`Publish worker failed for draft ${draftId}: ${message}`, 'error');
-        throw error;
-    }
-}, { connection: redisConnection });
+new Worker<PipelineJobData, void, string>(publishQueue.name, async (job) => {
+  const { draftId } = job.data;
+
+  if (!draftId || typeof draftId !== 'string') {
+    throw new Error(`Invalid draftId in job ${job.id}: ${draftId}`);
+  }
+
+  db.addAutomationLog(`[${new Date().toISOString()}] Publish worker processing job ${job.id} for draft ${draftId}`);
+  try {
+    await publishDraft(draftId);
+    db.addAutomationLog(`[${new Date().toISOString()}] Successfully published draft ${draftId} for job ${job.id}.`, 'success');
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Publish worker job ${job.id} failed for draft ${draftId}: ${message}`, 'error');
+    throw error;
+  }
+}, {
+  connection: redisConnection,
+  settings: {
+    backoff: 5000, // 5-second delay between retries
+    attempts: 3, // Retry up to 3 times
+  },
+});

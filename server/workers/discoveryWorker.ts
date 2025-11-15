@@ -4,32 +4,62 @@ import { redisConnection, discoveryQueue, generationQueue } from '../queues';
 import { runDiscovery } from '../services/discovery';
 import * as db from '../db';
 
-console.log('Starting Discovery Worker...');
+interface DiscoveryJobData {
+  niche?: string;
+  platforms?: string[];
+  geo?: string;
+}
 
-new Worker(discoveryQueue.name, async job => {
-    const { niche: jobNiche, platforms: jobPlatforms, geo: jobGeo } = job.data;
-    
-    // Use job data if available (for on-demand runs), otherwise use settings (for scheduled runs)
-    const settings = db.getSettings();
-    const niche = jobNiche || settings.defaultNiche;
-    const platforms = jobPlatforms || ['google', 'youtube', 'tiktok'];
-    const geo = jobGeo || 'US';
+interface DiscoveryResult {
+  id: string;
+  topic: string;
+  score: number;
+  status: string;
+  // Add other fields as needed
+}
 
-    db.addAutomationLog(`Discovery worker processing job for niche: ${niche}`);
-    try {
-        const newDiscoveries = await runDiscovery(niche, platforms, geo);
-        
-        if (newDiscoveries.length > 0) {
-            // After discovery, trigger the generation job to process the new finds.
-            // It will process the highest-scoring discovery.
-            await generationQueue.add('generate-drafts', {});
-            db.addAutomationLog(`Found ${newDiscoveries.length} new items, enqueued generation job.`);
-        } else {
-            db.addAutomationLog('No new discoveries found in this run.');
-        }
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        db.addAutomationLog(`Discovery worker job failed: ${message}`, 'error');
-        throw error; // Let BullMQ handle the failure and potential retries
+console.log(`[${new Date().toISOString()}] Starting Discovery Worker...`);
+
+new Worker<DiscoveryJobData, void, string>(discoveryQueue.name, async (job) => {
+  const { niche: jobNiche, platforms: jobPlatforms, geo: jobGeo } = job.data;
+
+  // Validate and fetch settings
+  const settings = await db.getSettings() as { defaultNiche?: string } | undefined;
+  if (!settings?.defaultNiche) {
+    throw new Error('Default niche not configured in settings.');
+  }
+
+  const niche = jobNiche || settings.defaultNiche;
+  const platforms = jobPlatforms || ['google', 'youtube', 'tiktok'];
+  const geo = jobGeo || 'US';
+
+  if (!niche || typeof niche !== 'string') {
+    throw new Error('Niche must be a valid string.');
+  }
+  if (!Array.isArray(platforms) || platforms.length === 0) {
+    throw new Error('Platforms must be a non-empty array.');
+  }
+
+  db.addAutomationLog(`[${new Date().toISOString()}] Discovery worker processing job ${job.id} for niche: ${niche}`);
+  try {
+    const newDiscoveries = await runDiscovery(niche, platforms, geo) as DiscoveryResult[];
+
+    if (newDiscoveries.length > 0) {
+      await generationQueue.add('generate-drafts', {});
+      db.addAutomationLog(`[${new Date().toISOString()}] Found ${newDiscoveries.length} new items for job ${job.id}, enqueued generation job.`);
+    } else {
+      db.addAutomationLog(`[${new Date().toISOString()}] No new discoveries found in job ${job.id}.`);
     }
-}, { connection: redisConnection });
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Discovery worker job ${job.id} failed: ${message}`, 'error');
+    throw error; // Let BullMQ handle retries
+  }
+}, {
+  connection: redisConnection,
+  // Custom retry settings
+  settings: {
+    backoff: 5000, // 5-second delay between retries
+    attempts: 3, // Retry up to 3 times
+  },
+});

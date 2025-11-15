@@ -4,16 +4,33 @@ import { redisConnection, thumbnailQueue } from '../queues';
 import { generateThumbnail } from '../services/thumbnailService';
 import * as db from '../db';
 
-console.log('Starting Thumbnail Worker...');
+interface ThumbnailJobData {
+  draftId: string;
+}
 
-new Worker(thumbnailQueue.name, async job => {
-    const { draftId } = job.data;
-    db.addAutomationLog(`Thumbnail worker processing job for draft ${draftId}`);
-    try {
-        await generateThumbnail(draftId);
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        db.addAutomationLog(`Thumbnail worker job failed for draft ${draftId}: ${message}`, 'error');
-        throw error;
-    }
-}, { connection: redisConnection, concurrency: 2 }); // Can run a few in parallel as it's API-bound
+console.log(`[${new Date().toISOString()}] Starting Thumbnail Worker...`);
+
+new Worker<ThumbnailJobData, void, string>(thumbnailQueue.name, async (job) => {
+  const { draftId } = job.data;
+
+  if (!draftId || typeof draftId !== 'string') {
+    throw new Error(`Invalid draftId in job ${job.id}: ${draftId}`);
+  }
+
+  db.addAutomationLog(`[${new Date().toISOString()}] Thumbnail worker processing job ${job.id} for draft ${draftId}`);
+  try {
+    await generateThumbnail(draftId);
+    db.addAutomationLog(`[${new Date().toISOString()}] Successfully generated thumbnail for job ${job.id} and draft ${draftId}.`, 'success');
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Thumbnail worker job ${job.id} failed for draft ${draftId}: ${message}`, 'error');
+    throw error;
+  }
+}, {
+  connection: redisConnection,
+  concurrency: 2, // Can run a few in parallel as it's API-bound
+  settings: {
+    backoff: 5000, // 5-second delay between retries
+    attempts: 3, // Retry up to 3 times
+  },
+});
