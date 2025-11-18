@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clip-Yube: AI Image Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Oswald:wght@400;700&family=Poppins:wght@900&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --cyan-glow: 0, 255, 255;
+        --cyan: #00ffff;
+        --bg-dark: #070912;
+      }
+      body {
+        background-color: var(--bg-dark);
+        background-image:
+            radial-gradient(at 27% 37%, hsla(215, 98%, 61%, 0.1) 0px, transparent 50%),
+            radial-gradient(at 97% 21%, hsla(188, 98%, 61%, 0.1) 0px, transparent 50%),
+            radial-gradient(at 74% 94%, hsla(320, 98%, 61%, 0.1) 0px, transparent 50%),
+            radial-gradient(at 18% 97%, hsla(256, 98%, 61%, 0.1) 0px, transparent 50%);
+        font-family: 'Inter', sans-serif;
+        color: #e5e7eb;
+      }
+      .font-oswald {
+        font-family: 'Oswald', sans-serif;
+      }
+      .text-glow {
+        text-shadow: 0 0 8px rgba(var(--cyan-glow), 0.4);
+      }
+      .text-gradient-cyan-sanguine {
+        background-image: linear-gradient(to right, #00ffff, #f64d6b);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: rgba(var(--cyan-glow), 0.3);
+        border-radius: 10px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(var(--cyan-glow), 0.5);
+      }
+      /* Caption Styles */
+      .caption-base {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 90%;
+          max-width: 800px;
+          text-align: center;
+          pointer-events: auto;
+          padding: 0.5rem 1rem;
+          font-size: 1.25rem;
+          line-height: 1.4;
+          bottom: 5%;
+          transition: all 0.3s ease;
+      }
+      .caption-modern {
+          background-color: rgba(0, 0, 0, 0.6);
+          color: white;
+          font-family: 'Inter', sans-serif;
+          font-weight: 700;
+          border-radius: 0.5rem;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+      }
+      .caption-classic {
+          background-color: transparent;
+          color: white;
+          font-family: 'Lora', serif;
+          font-weight: 700;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+          font-size: 1.5rem;
+      }
+      .caption-funky {
+          background-image: linear-gradient(to right, #ec4899, #f59e0b);
+          color: black;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 900;
+          font-style: italic;
+          clip-path: polygon(0 0, 100% 10%, 95% 100%, 5% 90%);
+          padding: 1rem 1.5rem;
+      }
+      /* Basic Prose styles for generated blog content */
+      .prose p { margin-bottom: 1.25em; }
+      .prose h3 { margin-top: 1.6em; margin-bottom: 0.6em; font-size: 1.5rem; line-height: 2rem; font-weight: 700; }
+      .prose h4 { margin-top: 1.5em; margin-bottom: 0.5em; font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; color: var(--cyan); }
+      .prose ul, .prose ol { margin-left: 1.5em; margin-bottom: 1.25em; }
+      .prose li { margin-bottom: 0.5em; }
+      .prose strong { font-weight: 700; }
+      .prose code { background-color: rgba(var(--cyan-glow), 0.1); color: var(--cyan); padding: 0.2em 0.4em; border-radius: 0.25rem; font-family: monospace; }
+      .prose a { color: var(--cyan); text-decoration: none; }
+      .prose a:hover { text-decoration: underline; }
+
+
+      /* Sphere Animation Styles */
+      @keyframes rotate {
+        from { transform: rotate(0deg) scale(1); }
+        to { transform: rotate(360deg) scale(1.05); }
+      }
+      @keyframes rotate-reverse {
+        from { transform: rotate(0deg) scale(1.05); }
+        to { transform: rotate(-360deg) scale(1); }
+      }
+      .sphere-container {
+        filter: blur(20px) brightness(1.2);
+        opacity: 0.25;
+      }
+      .sphere-item {
+        position: absolute;
+        border-radius: 50%;
+        mix-blend-mode: screen;
+        will-change: transform;
+      }
+      
+      /* Print Styles */
+      @media print {
+        body {
+          background: #fff !important;
+          color: #000 !important;
+          font-family: 'Lora', serif;
+          font-size: 11pt;
+          line-height: 1.5;
+        }
+        nav, footer, .sharing-controls, .non-printable, #root > div > div:last-child /* Cookie Banner */ {
+          display: none !important;
+        }
+        main {
+          padding: 0 !important;
+          margin: 0.5in !important;
+          width: auto !important;
+          border: none !important;
+          box-shadow: none !important;
+          flex-grow: unset !important;
+          container: unset !important;
+        }
+        article {
+            padding: 0 !important;
+            background: transparent !important;
+        }
+        article img {
+          max-width: 100% !important;
+          page-break-inside: avoid;
+        }
+        .prose, .prose p, .prose li {
+          color: #000 !important;
+        }
+        .prose a {
+          color: #000 !important;
+          text-decoration: underline !important;
+        }
+        .prose a[href^="http"]:after, .prose a[href^="https"]:after {
+          content: " (" attr(href) ")";
+          font-size: 90%;
+          color: #555;
+          word-break: break-all;
+        }
+        h1, h2, h3, h4, h5, h6 {
+          color: #000 !important;
+          text-shadow: none !important;
+          background-image: none !important;
+          -webkit-background-clip: unset !important;
+          background-clip: unset !important;
+          page-break-after: avoid;
+          font-family: 'Oswald', sans-serif;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^11.3.12",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "dotenv/": "https://aistudiocdn.com/dotenv@^17.2.3/",
+    "body-parser": "https://aistudiocdn.com/body-parser@^2.2.0",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "bullmq": "https://aistudiocdn.com/bullmq@^5.10.1",
+    "ioredis": "https://aistudiocdn.com/ioredis@^5.4.1",
+    "openai": "https://aistudiocdn.com/openai@^4.52.7",
+    "fluent-ffmpeg": "https://aistudiocdn.com/fluent-ffmpeg@^2.2.0",
+    "redis": "https://aistudiocdn.com/redis@^5.9.0",
+    "lib/": "https://aistudiocdn.com/lib@^5.1.0/",
+    "use-debounce": "https://aistudiocdn.com/use-debounce@^10.0.6",
+    "@runwayml/sdk": "https://aistudiocdn.com/@runwayml/sdk@^3.7.0",
+    "bull": "https://aistudiocdn.com/bull@^4.16.5"
+  }
+}
+</script>
+</head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

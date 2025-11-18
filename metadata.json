@@ -1,0 +1,23 @@
+{
+  "name": "Clip-Yube: AI-Powered Image & Dynamic Content Editor",
+  "description": "A cutting-edge application enabling users to effortlessly edit images with intuitive text prompts, leveraging the advanced Gemini 2.5 Flash Image model. Upload any image, issue commands like 'Add a retro filter' or 'Enhance colors', and get stunning AI-generated results in seconds. Perfect for creators, designers, and casual users alike.",
+  "version": "1.0.0",
+  "author": "Clip-Yube Team",
+  "website": "https://clipyube.info",
+  "supportEmail": "support@clipyube.info",
+  "license": "MIT",
+  "requestFramePermissions": [],
+  "permissions": [
+    "storage",
+    "unlimitedStorage"
+  ],
+  "manifest_version": 3,
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "default_locale": "en",
+  "update_url": "https://clients2.google.com/service/update2/crx",
+  "minimum_chrome_version": "88"
+}
