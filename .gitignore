@@ -7,30 +7,141 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+.nexus/
+.out/
+.next/
+nuxt/
+
+# Production build
+/.env.production
+/.env.production.local
+
+# Local environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary folders
+tmp/
+temp/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Debugger files
+.vscode/launch.json
+
+# Package lock files (choose one)
+# package-lock.json   # if using npm
+# yarn.lock           # if using yarn
+# pnpm-lock.yaml      # if using pnpm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary husky files
+.husky/_/
+
+# Database files (if using local databases)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+
+# Local Netlify folder
+.netlify
+
+# Svelte build
+.svelte-kit
+
+# Rollup build
+rollup.build-*
+
+# Vercel
+.vercel
+
+# Cache directories
+.cache/
+*.tsbuildinfo
+
+# Microbundle
+*.d.ts
+*.d.ts.map
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-<<<<<<< HEAD
-node_modules/
-.env
-.next/
-dist/
-node_modules/
-.env
-.next/
-dist/
-=======
->>>>>>> df5ec207856d6c173980d2cf9489250f9cea53b4
-.env
