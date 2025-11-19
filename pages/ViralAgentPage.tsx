@@ -24,6 +24,7 @@ const PLATFORMS = [
 
 const AGENT_STATE_KEY = "clipyube-viral-agent-state";
 
+// FIX: Removed conflicting local declaration of ContentIdea, as it's already imported.
 const SourceIcon: React.FC<{ source: string }> = ({ source }) => {
   const lowerSource = source.toLowerCase();
   if (lowerSource.includes("youtube")) return <YouTubeIcon />;
@@ -49,9 +50,7 @@ const ContentIdeaCard: React.FC<ContentIdeaCardProps> = ({ idea }) => {
       await generateBlogPost(idea);
     } catch (e) {
       console.error("Blog generation failed from card", e);
-      setGenerationError(
-        e instanceof Error ? e.message : "An unknown error occurred."
-      );
+      setGenerationError(e instanceof Error ? e.message : "An unknown error occurred.");
     } finally {
       setIsGeneratingBlog(false);
     }
@@ -90,9 +89,7 @@ const ContentIdeaCard: React.FC<ContentIdeaCardProps> = ({ idea }) => {
           ))}
         </div>
       </div>
-      {generationError && (
-        <p className="text-red-400 text-xs my-2">{generationError}</p>
-      )}
+      {generationError && <p className="text-red-400 text-xs my-2">{generationError}</p>}
       <div className="mt-auto pt-4 border-t border-white/10 flex items-center gap-3">
         <button
           aria-label={`Create blog for ${idea.title}`}
@@ -134,7 +131,6 @@ const ViralAgentPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Load saved state on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -147,17 +143,6 @@ const ViralAgentPage: React.FC = () => {
       console.error("Failed to load viral agent state", e);
     }
   }, [niche]);
-
-  // Save state whenever niche or results change
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const payload = JSON.stringify({ niche, results });
-      window.localStorage.setItem(AGENT_STATE_KEY, payload);
-    } catch (e) {
-      console.error("Failed to persist viral agent state", e);
-    }
-  }, [niche, results]);
 
   const handlePlatformChange = (platformId: string) => {
     setSelectedPlatforms((prev) =>
@@ -184,12 +169,10 @@ const ViralAgentPage: React.FC = () => {
         setProgressMessage
       );
       setSuccessMessage(agentResponse.message);
-      setResults([]); // clear old results; new ones will be picked up from discovery/generation
+      setResults([]); // Clear old results; consider polling for new ones
     } catch (e) {
       const message = e instanceof Error ? e.message : "Server unreachable";
-      setError(
-        `Agent dispatch failed: ${message}. Check backend at http://localhost:3001`
-      );
+      setError(`Agent dispatch failed: ${message}. Check backend at http://localhost:3001`);
     } finally {
       setIsLoading(false);
       setProgressMessage("");
@@ -200,10 +183,7 @@ const ViralAgentPage: React.FC = () => {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 },
-  };
+  const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -221,10 +201,7 @@ const ViralAgentPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div>
-            <label
-              htmlFor="niche-input"
-              className="block text-sm font-medium text-slate-300 mb-2"
-            >
+            <label htmlFor="niche-input" className="block text-sm font-medium text-slate-300 mb-2">
               Content Niche
             </label>
             <input
@@ -239,10 +216,7 @@ const ViralAgentPage: React.FC = () => {
             />
           </div>
           <div>
-            <label
-              htmlFor="geo-select"
-              className="block text-sm font-medium text-slate-300 mb-2"
-            >
+            <label htmlFor="geo-select" className="block text-sm font-medium text-slate-300 mb-2">
               Target Country
             </label>
             <select
@@ -261,7 +235,6 @@ const ViralAgentPage: React.FC = () => {
             </select>
           </div>
         </div>
-
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Analyze Platforms
@@ -285,29 +258,19 @@ const ViralAgentPage: React.FC = () => {
           </div>
         </div>
 
-        {error && (
-          <p className="text-red-400 text-sm mt-4 text-center">{error}</p>
-        )}
-        {successMessage && (
-          <p className="text-green-400 text-sm mt-4 text-center">
-            {successMessage}
-          </p>
-        )}
+        {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
+        {successMessage && <p className="text-green-400 text-sm mt-4 text-center">{successMessage}</p>}
 
         <div className="mt-6 border-t border-white/10 pt-6">
           <MotionButton
             whileTap={{ scale: 0.95 }}
             onClick={handleRunAgent}
-            disabled={
-              isLoading || !niche.trim() || selectedPlatforms.length === 0
-            }
+            disabled={isLoading || !niche.trim() || selectedPlatforms.length === 0}
             className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 bg-cyan-500 text-black font-bold py-3 px-4 rounded-lg hover:bg-cyan-400 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 disabled:scale-100 shadow-[0_0_15px_rgba(var(--cyan-glow),0.4)] hover:shadow-[0_0_25px_rgba(var(--cyan-glow),0.6)] disabled:shadow-none"
           >
             {isLoading ? <Loader /> : <MagicWandIcon />}
             <span>
-              {isLoading
-                ? progressMessage || "Agent is Working..."
-                : "Find Viral Content"}
+              {isLoading ? progressMessage || "Agent is Working..." : "Find Viral Content"}
             </span>
           </MotionButton>
         </div>
@@ -320,12 +283,7 @@ const ViralAgentPage: React.FC = () => {
           </div>
         )}
         {results.length > 0 && (
-          <MotionDiv
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            variants={containerVariants}
-          >
+          <MotionDiv initial="hidden" animate="visible" exit="hidden" variants={containerVariants}>
             <h3 className="text-3xl font-bold text-white mb-6 text-center font-oswald">
               Last Known Ideas
             </h3>

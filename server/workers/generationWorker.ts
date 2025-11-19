@@ -1,79 +1,43 @@
 // server/workers/generationWorker.ts
-import { Worker, JobsOptions } from "bullmq";
-import {
-  redisConnection,
-  generationQueue,
-  renderQueue,
-  thumbnailQueue,
-} from "../queues";
-import { buildDrafts } from "../services/generation";
-import * as db from "../db";
+import { Worker } from 'bullmq';
+import { redisConnection, generationQueue, renderQueue, thumbnailQueue } from '../queues';
+import { buildDrafts } from '../services/generation';
+import * as db from '../db';
+
+interface GenerationJobData {
+  // Add any job-specific data if needed (currently unused)
+}
 
 interface Draft {
   id: string;
-  [key: string]: unknown;
+  // Add other fields as needed from services/generation.ts
 }
 
-interface GenerationJobData {
-  // Extend later if you want job-level config
-}
+console.log(`[${new Date().toISOString()}] Starting Generation Worker...`);
 
-const log = (type: "info" | "success" | "error", msg: string) => {
-  const line = `[GENERATION_WORKER] [${new Date().toISOString()}] [${type}] ${msg}`;
-  console.log(line);
-  db.addAutomationLog(line, type);
-};
+new Worker<GenerationJobData, void, string>(generationQueue.name, async (job) => {
+  db.addAutomationLog(`[${new Date().toISOString()}] Generation worker processing job ${job.id} to build drafts...`);
+  try {
+    const newDrafts = await buildDrafts() as Draft[];
 
-console.log(`[${new Date().toISOString()}] Generation Worker Online…`);
-
-const jobOpts: JobsOptions = {
-  attempts: 3,
-  backoff: { type: "exponential", delay: 2000 },
-  removeOnComplete: 500,
-  removeOnFail: 100,
-};
-
-new Worker<GenerationJobData, void>(
-  generationQueue.name,
-  async (job) => {
-    log("info", `Processing job ${job.id} — building drafts…`);
-
-    try {
-      const drafts = (await buildDrafts()) as Draft[];
-
-      if (!drafts || drafts.length === 0) {
-        log("info", `Job ${job.id}: No new drafts generated.`);
-        return;
-      }
-
-      for (const draft of drafts) {
-        if (!draft.id) {
-          throw new Error(
-            `Invalid draft object returned: ${JSON.stringify(draft)}`
-          );
+    if (newDrafts && newDrafts.length > 0) {
+      for (const draft of newDrafts) {
+        if (!draft.id || typeof draft.id !== 'string') {
+          throw new Error(`Invalid draft ID in newDrafts: ${JSON.stringify(draft)}`);
         }
-
-        await renderQueue.add("render-video", { draftId: draft.id }, jobOpts);
-        await thumbnailQueue.add(
-          "generate-thumbnail",
-          { draftId: draft.id },
-          jobOpts
-        );
+        await renderQueue.add('render-video', { draftId: draft.id });
+        await thumbnailQueue.add('generate-thumbnail', { draftId: draft.id });
       }
-
-      log(
-        "success",
-        `Job ${job.id}: Enqueued ${drafts.length} render + thumbnail jobs.`
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
-      log("error", `Job ${job.id} failed: ${message}`);
-      throw err;
+      db.addAutomationLog(`[${new Date().toISOString()}] Enqueued ${newDrafts.length} render and thumbnail jobs for job ${job.id}.`);
+    } else {
+      db.addAutomationLog(`[${new Date().toISOString()}] No new drafts were created in job ${job.id}.`);
     }
-  },
-  {
-    connection: redisConnection,
-    concurrency: 1,
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Generation worker job ${job.id} failed: ${message}`, 'error');
+    throw error; // Let BullMQ handle retries
   }
-);
+}, {
+  connection: redisConnection,
+  // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
+});

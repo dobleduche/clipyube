@@ -3,7 +3,7 @@ import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTra
 import { generateVideoWithRunway } from '../services/runwayService';
 import { fileToBase64, dataUrlToFile } from '../utils/fileUtils';
 import Loader from './Loader';
-import { UploadIcon, MagicWandIcon, TrashIcon, DownloadIcon, CropIcon, PlusIcon, MinusIcon, UndoIcon, RedoIcon, FilterIcon, UpscaleIcon, AdjustmentsIcon, BackgroundEraserIcon, ColorSplashIcon, StyleTransferIcon, SaveIcon, LoadIcon, DevicePreviewIcon, VideoIcon, WatermarkIcon, XIcon, BrushIcon, ResetZoomIcon, ArrowLeftIcon, ArrowRightIcon, SearchIcon } from './Icons';
+import { UploadIcon, MagicWandIcon, TrashIcon, DownloadIcon, CropIcon, PlusIcon, MinusIcon, UndoIcon, RedoIcon, FilterIcon, UpscaleIcon, AdjustmentsIcon, BackgroundEraserIcon, ColorSplashIcon, StyleTransferIcon, SaveIcon, LoadIcon, DevicePreviewIcon, VideoIcon, WatermarkIcon, XIcon, BrushIcon, ResetZoomIcon, ArrowLeftIcon, ArrowRightIcon, SearchIcon, HistoryIcon, CloneIcon } from './Icons';
 import ExampleCarousel from './ExampleCarousel';
 import ToolOptionsPanel from './ToolOptionsPanel';
 import { useAppContext } from '../context/AppContext';
@@ -17,7 +17,7 @@ const EDITOR_STATE_KEY = 'clipyube-editor-state';
 const CUSTOM_FILTERS_KEY = 'clipyube-custom-filters';
 const VIDEO_PRESETS_KEY = 'clipyube-video-presets';
 
-type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'devicepreview' | 'video' | 'watermark' | 'ai-edit' | 'effects' | 'brush' | 'image-search';
+type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'devicepreview' | 'video' | 'watermark' | 'ai-edit' | 'effects' | 'brush' | 'image-search' | 'history';
 
 const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
     if (!(error instanceof Error)) {
@@ -213,6 +213,7 @@ interface HistoryState {
     prompt: string;
     activeFilter: string;
     adjustments: typeof defaultAdjustments;
+    action: string;
 }
 
 const defaultEffects = {
@@ -221,6 +222,56 @@ const defaultEffects = {
 };
 
 const MotionImg = motion.img;
+
+const HistoryPanel: React.FC<{
+    history: HistoryState[];
+    currentIndex: number;
+    onJump: (index: number) => void;
+    onClone: (index: number) => void;
+}> = ({ history, currentIndex, onJump, onClone }) => {
+    const listRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const currentItem = listRef.current?.querySelector(`[data-index="${currentIndex}"]`) as HTMLElement;
+        if (currentItem) {
+            currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [currentIndex]);
+
+    return (
+        <div ref={listRef} className="max-h-96 overflow-y-auto space-y-2 pr-2 -mr-2">
+            {history.map((state, index) => (
+                <motion.div
+                    key={state.id}
+                    data-index={index}
+                    className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors relative group ${currentIndex === index ? 'bg-cyan-500/20' : 'hover:bg-white/10'}`}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                >
+                    <button onClick={() => onJump(index)} className="flex items-center gap-3 flex-grow text-left" aria-label={`Jump to step ${index + 1}: ${state.action}`}>
+                        <img src={state.imageUrl} alt={state.action} className="w-10 h-10 object-cover rounded-md flex-shrink-0" />
+                        <div className="flex-grow overflow-hidden">
+                            <p className={`text-sm truncate ${currentIndex === index ? 'text-cyan-300 font-semibold' : 'text-slate-200'}`}>{state.action}</p>
+                             <p className="text-xs text-slate-400">Step {index + 1}</p>
+                        </div>
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onClone(index); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-slate-700 hover:bg-cyan-600 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                        title="Clone this step to create a new branch"
+                        aria-label={`Clone step ${index + 1}`}
+                    >
+                        <CloneIcon />
+                    </button>
+                </motion.div>
+            ))}
+            {history.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">Your edit history will appear here.</p>
+            )}
+        </div>
+    );
+};
+
 
 export const ImageEditor: React.FC = () => {
     const { automation, clearAutomation } = useAppContext();
@@ -356,18 +407,20 @@ export const ImageEditor: React.FC = () => {
     }, [automation, clearAutomation]);
 
 
-    const updateHistory = useCallback((newState: Partial<HistoryState>) => {
+    const updateHistory = useCallback((newState: Partial<HistoryState>, action: string) => {
         const currentState = history[currentHistoryIndex];
-        if (!currentState) {
-            console.error("Attempted to update history with no current state. This is a bug.");
-            return;
+        // If there's no state, we can't update. This should only happen if called before an image is loaded.
+        if (!currentState && history.length > 0) {
+             console.error("Attempted to update history without a current valid state. This is a bug.");
+             return;
         }
         
         const newHistoryState: HistoryState = {
-            ...currentState,
+            ...(currentState || {}), // Start with current or empty object
             ...newState,
+            action,
             id: `hist-${Date.now()}-${Math.random()}`
-        };
+        } as HistoryState;
 
         const newHistory = [...history.slice(0, currentHistoryIndex + 1), newHistoryState];
         
@@ -377,7 +430,7 @@ export const ImageEditor: React.FC = () => {
 
     // Debounced function to commit adjustment changes to history
     const debouncedUpdateHistoryForAdjustments = useDebouncedCallback((newAdjustments: typeof defaultAdjustments) => {
-        updateHistory({ adjustments: newAdjustments });
+        updateHistory({ adjustments: newAdjustments }, "Adjustments");
     }, 300);
 
     const handleAdjustmentChange = (key: keyof typeof defaultAdjustments, value: number) => {
@@ -456,7 +509,7 @@ export const ImageEditor: React.FC = () => {
 
                         const newDataUrl = canvas.toDataURL('image/png');
                         const newFile = await dataUrlToFile(newDataUrl, `${filterName}-effect.png`);
-                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile, activeFilter: 'none' });
+                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile, activeFilter: 'none' }, `Canvas: ${filterName}`);
                         resolve();
                     } catch (e) { reject(e); }
                 };
@@ -472,7 +525,7 @@ export const ImageEditor: React.FC = () => {
 
     const handleFilterChange = (filter: EditorFilter) => {
         if (filter.type === 'css') {
-            updateHistory({ activeFilter: filter.value });
+            updateHistory({ activeFilter: filter.value }, `Filter: ${filter.name}`);
         } else {
             applyCanvasFilter(filter.value);
         }
@@ -495,7 +548,8 @@ export const ImageEditor: React.FC = () => {
                             imageFile: imageFile,
                             prompt: savedState.prompt || '',
                             activeFilter: savedState.activeFilter || 'none',
-                            adjustments: savedState.adjustments || defaultAdjustments
+                            adjustments: savedState.adjustments || defaultAdjustments,
+                            action: 'Session Restored',
                         };
                         setHistory([initialState]);
                         setCurrentHistoryIndex(0);
@@ -569,7 +623,8 @@ export const ImageEditor: React.FC = () => {
                     imageFile: file,
                     prompt: '',
                     activeFilter: 'none',
-                    adjustments: defaultAdjustments
+                    adjustments: defaultAdjustments,
+                    action: 'Image Loaded'
                 };
                 setHistory([initialState]);
                 setCurrentHistoryIndex(0);
@@ -613,9 +668,9 @@ export const ImageEditor: React.FC = () => {
              Object.keys(defaultAdjustments).some(key => currentHistoryState.adjustments[key as keyof typeof defaultAdjustments] !== defaultAdjustments[key as keyof typeof defaultAdjustments]);
     }, [currentHistoryState]);
 
-    const bakeAndCommitEffects = useCallback(async (): Promise<HistoryState> => {
+    const bakeAndCommitEffects = useCallback(async (): Promise<Pick<HistoryState, 'imageUrl' | 'imageFile'>> => {
         if (!currentHistoryState || !isCurrentStateAdjusted) {
-            return currentHistoryState!;
+             return { imageUrl: currentHistoryState!.imageUrl, imageFile: currentHistoryState!.imageFile };
         }
 
         const image = new Image();
@@ -643,28 +698,13 @@ export const ImageEditor: React.FC = () => {
                     const newDataUrl = tempCanvas.toDataURL('image/png');
                     const newFile = await dataUrlToFile(newDataUrl, 'baked-image.png');
                     
-                    const bakedState: HistoryState = {
-                        id: `hist-baked-${Date.now()}`,
-                        imageUrl: newDataUrl,
-                        imageFile: newFile,
-                        prompt: currentHistoryState.prompt,
-                        activeFilter: 'none',
-                        adjustments: defaultAdjustments
-                    };
-                    
-                    updateHistory({
-                        imageUrl: bakedState.imageUrl,
-                        imageFile: bakedState.imageFile,
-                        activeFilter: bakedState.activeFilter,
-                        adjustments: bakedState.adjustments
-                    });
-                    resolve(bakedState);
+                    resolve({ imageUrl: newDataUrl, imageFile: newFile });
 
                 } catch (e) { reject(e); }
             };
             image.onerror = () => reject(new Error("Failed to load image for baking effects."));
         });
-    }, [currentHistoryState, isCurrentStateAdjusted, updateHistory]);
+    }, [currentHistoryState, isCurrentStateAdjusted]);
 
     const handleGenerate = useCallback(async () => {
         if (!currentHistoryState?.imageFile || !prompt.trim()) {
@@ -679,19 +719,25 @@ export const ImageEditor: React.FC = () => {
         setCaption(null);
 
         try {
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) throw new Error("Could not prepare image for AI generation.");
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) throw new Error("Could not prepare image for AI generation.");
             
-            const base64Data = await fileToBase64(bakedState.imageFile);
+            const base64Data = await fileToBase64(bakedImageFile);
             
             let finalPrompt = prompt.trim();
             if (quality === 'Low') finalPrompt += ', low quality, low resolution.';
             else if (quality === 'High') finalPrompt += ', high quality, 4k resolution, sharp details.';
 
-            const resultUrl = await editImageWithPrompt(base64Data, bakedState.imageFile.type, finalPrompt);
+            const resultUrl = await editImageWithPrompt(base64Data, bakedImageFile.type, finalPrompt);
             const resultFile = await dataUrlToFile(resultUrl, 'edited-image.png');
             
-            updateHistory({ imageUrl: resultUrl, imageFile: resultFile, prompt: prompt });
+            updateHistory({ 
+                imageUrl: resultUrl, 
+                imageFile: resultFile, 
+                prompt: prompt,
+                activeFilter: 'none',
+                adjustments: defaultAdjustments
+            }, `AI: "${prompt.substring(0, 15)}..."`);
 
         } catch (err) {
             console.error("AI Generation Error:", err);
@@ -713,16 +759,21 @@ export const ImageEditor: React.FC = () => {
         setError(null);
 
         try {
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) {
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) {
                 throw new Error("Could not prepare image for background removal.");
             }
             
-            const base64Data = await fileToBase64(bakedState.imageFile);
-            const resultUrl = await removeImageBackground(base64Data, bakedState.imageFile.type);
+            const base64Data = await fileToBase64(bakedImageFile);
+            const resultUrl = await removeImageBackground(base64Data, bakedImageFile.type);
             const resultFile = await dataUrlToFile(resultUrl, 'bg-removed-image.png');
             
-            updateHistory({ imageUrl: resultUrl, imageFile: resultFile });
+            updateHistory({ 
+                imageUrl: resultUrl, 
+                imageFile: resultFile,
+                activeFilter: 'none',
+                adjustments: defaultAdjustments
+            }, "BG Removal");
 
         } catch (err) {
             setError(getFriendlyErrorMessage(err, 'Background Removal'));
@@ -743,16 +794,21 @@ export const ImageEditor: React.FC = () => {
         setError(null);
 
         try {
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) {
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) {
                 throw new Error("Could not prepare image for upscaling.");
             }
             
-            const base64Data = await fileToBase64(bakedState.imageFile);
-            const resultUrl = await upscaleImage(base64Data, bakedState.imageFile.type, 2); // Hardcode 2x for now
+            const base64Data = await fileToBase64(bakedImageFile);
+            const resultUrl = await upscaleImage(base64Data, bakedImageFile.type, 2); // Hardcode 2x for now
             const resultFile = await dataUrlToFile(resultUrl, 'upscaled-image.png');
             
-            updateHistory({ imageUrl: resultUrl, imageFile: resultFile });
+            updateHistory({ 
+                imageUrl: resultUrl, 
+                imageFile: resultFile,
+                activeFilter: 'none',
+                adjustments: defaultAdjustments
+            }, "Upscale 2x");
 
         } catch (err) {
             setError(getFriendlyErrorMessage(err, 'Image Upscaling'));
@@ -880,6 +936,23 @@ export const ImageEditor: React.FC = () => {
             setCurrentHistoryIndex(currentHistoryIndex + 1);
         }
     };
+
+    const handleCloneHistoryState = (indexToClone: number) => {
+        if (indexToClone < 0 || indexToClone >= history.length) return;
+
+        const stateToClone = history[indexToClone];
+        
+        const clonedState: HistoryState = {
+            ...stateToClone,
+            id: `hist-cloned-${Date.now()}`,
+            action: `Cloned: "${stateToClone.action.substring(0, 20)}..."`
+        };
+
+        // Create a new branch from the current point, discarding any "redo" steps
+        const newHistory = [...history.slice(0, currentHistoryIndex + 1), clonedState];
+        setHistory(newHistory);
+        setCurrentHistoryIndex(newHistory.length - 1);
+    };
     
     const handleVideoGenerate = useCallback(async () => {
         if (!videoPrompt.trim()) {
@@ -909,12 +982,12 @@ export const ImageEditor: React.FC = () => {
                 fullVideoPrompt += ` With caption text: "${caption.text}"`;
             }
     
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) {
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) {
                 throw new Error("Could not prepare image for video generation.");
             }
-            const imageBase64 = await fileToBase64(bakedState.imageFile);
-            const imageMimeType = bakedState.imageFile.type;
+            const imageBase64 = await fileToBase64(bakedImageFile);
+            const imageMimeType = bakedImageFile.type;
             
             const videoUrl = await generateVideoWithRunway(
                 fullVideoPrompt,
@@ -1118,7 +1191,7 @@ export const ImageEditor: React.FC = () => {
                         const newDataUrl = canvas.toDataURL('image/png');
                         const newFile = await dataUrlToFile(newDataUrl, 'brushed-image.png');
 
-                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile });
+                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile }, "Brush Applied");
                         handleClearBrush();
                         resolve();
 
@@ -1283,6 +1356,10 @@ export const ImageEditor: React.FC = () => {
                             <VideoIcon />
                              <span className="mt-1">Video</span>
                         </button>
+                         <button onClick={() => toggleTool('history')} className={toolButtonClasses('history')}>
+                            <HistoryIcon />
+                             <span className="mt-1">History</span>
+                        </button>
                         <button onClick={handleRemoveBackground} disabled={isLoading} className="p-2 rounded-lg transition-colors duration-200 flex flex-col items-center justify-center text-xs w-full h-16 text-center bg-slate-700/50 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
                             {isLoading && loadingMessage.includes('background') ? <Loader/> : <BackgroundEraserIcon />}
                             <span className="mt-1">{isLoading && loadingMessage.includes('background') ? 'Erasing...' : 'BG Erase'}</span>
@@ -1293,6 +1370,10 @@ export const ImageEditor: React.FC = () => {
                         </button>
                     </div>
                 </div>
+
+                <ToolOptionsPanel title="History" icon={<HistoryIcon />} isOpen={toolIsActive('history')} onToggle={() => toggleTool('history')}>
+                    <HistoryPanel history={history} currentIndex={currentHistoryIndex} onJump={setCurrentHistoryIndex} onClone={handleCloneHistoryState} />
+                </ToolOptionsPanel>
 
                 <ToolOptionsPanel title="Filters" icon={<FilterIcon />} isOpen={toolIsActive('filters')} onToggle={() => toggleTool('filters')}>
                     <div className="grid grid-cols-3 gap-2">

@@ -1,60 +1,27 @@
 // server/db/index.ts
-// In-memory DB (persist later if needed)
+// Simple in-memory database for demonstration purposes.
 
-export interface AutomationLog {
-  timestamp: string;
-  message: string;
-  type: "info" | "success" | "error";
-}
+import { Settings } from '../../context/SettingsContext';
+import { BlogPost } from '../../pages/BlogPage';
+import { initialBlogPosts } from '../../data/blogData';
 
-export interface WatermarkSettings {
-  type: string;
-  text: string;
-  font: string;
-  fontSize: number;
-  color: string;
-  opacity: number;
-  position: string;
-}
-
-export interface Settings {
-  profileName: string;
-  defaultNiche: string;
-  twitterHandle: string;
-  automationInterval: number;
-  watermarkDefaults: WatermarkSettings;
-}
-
-export interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  created_at: string;
-}
-
-// -------------------------------
-// Default Settings
-// -------------------------------
+// Default settings that can be overridden by user
 const defaultSettings: Settings = {
-  profileName: "AI Content Creator",
-  defaultNiche: "AI Technology",
-  twitterHandle: "",
-  automationInterval: 3600000,
-  watermarkDefaults: {
-    type: "text",
-    text: "Clip-Yube",
-    font: "Oswald",
-    fontSize: 48,
-    color: "#ffffff",
-    opacity: 0.7,
-    position: "bottom-right",
-  },
+    profileName: 'AI Content Creator',
+    defaultNiche: 'AI Technology',
+    twitterHandle: '',
+    automationInterval: 3600000, // 1 hour
+    watermarkDefaults: {
+        type: 'text',
+        text: 'Clip-Yube',
+        font: 'Oswald',
+        fontSize: 48,
+        color: '#ffffff',
+        opacity: 0.7,
+        position: 'bottom-right',
+    },
 };
 
-// -------------------------------
-// DB Shape
-// -------------------------------
 interface DbData {
   sources: any[];
   discoveries: any[];
@@ -62,9 +29,10 @@ interface DbData {
   publishes: any[];
   thumbnails: any[];
   blogPosts: BlogPost[];
+  // Application State
   automation: {
     isRunning: boolean;
-    logs: AutomationLog[];
+    logs: { timestamp: string; message: string; type: 'info' | 'success' | 'error' }[];
   };
   settings: Settings;
 }
@@ -75,91 +43,57 @@ const db: DbData = {
   drafts: [],
   publishes: [],
   thumbnails: [],
-  blogPosts: [],
-  automation: { isRunning: false, logs: [] },
+  blogPosts: initialBlogPosts,
+  automation: {
+    isRunning: false,
+    logs: [],
+  },
   settings: defaultSettings,
 };
 
-// -------------------------------
-// Table Accessors
-// -------------------------------
-export const getTable = <T extends keyof DbData>(
-  tableName: T
-): DbData[T] => db[tableName];
+export const getTable = <T extends keyof DbData>(tableName: T): DbData[T] => {
+  return db[tableName];
+};
 
-export const addItem = <T extends keyof DbData>(
-  tableName: T,
-  item: any
-) => {
-  if (Array.isArray(db[tableName])) {
-    (db[tableName] as any[]).push(item);
-  }
+export const addItem = <T extends keyof (Omit<DbData, 'automation' | 'settings'>)>(tableName: T, item: any) => {
+  (db[tableName] as any[]).push(item);
   return item;
 };
 
-export const findItemById = (
-  tableName: keyof DbData,
-  id: string
-) => {
-  const table = db[tableName];
-  if (!Array.isArray(table)) return undefined;
-  return table.find((i) => i.id === id);
+export const findItemById = <T extends keyof DbData>(tableName: T, id: string): any | undefined => {
+  return (db[tableName] as any[]).find(item => item.id === id);
 };
 
-export const updateItem = (
-  tableName: keyof DbData,
-  id: string,
-  updatedItem: any
-) => {
-  const table = db[tableName];
-  if (!Array.isArray(table)) return undefined;
-
-  const idx = table.findIndex((i) => i.id === id);
-  if (idx >= 0) {
-    table[idx] = updatedItem;
+// FIX: Implement the missing updateItem function.
+export const updateItem = <T extends keyof (Omit<DbData, 'automation' | 'settings'>)>(tableName: T, id: string, updatedItem: any) => {
+  const table = (db[tableName] as any[]);
+  const itemIndex = table.findIndex(item => item.id === id);
+  if (itemIndex > -1) {
+    table[itemIndex] = updatedItem;
     return updatedItem;
   }
-
   return undefined;
 };
 
-// -------------------------------
-// Automation State
-// -------------------------------
+// State management functions
 export const getAutomationState = () => db.automation;
-
 export const setAutomationRunning = (isRunning: boolean) => {
   db.automation.isRunning = isRunning;
 };
-
-export const addAutomationLog = (
-  message: string,
-  type: "info" | "success" | "error" = "info"
-) => {
-  db.automation.logs.unshift({
-    timestamp: new Date().toISOString(),
-    message,
-    type,
-  });
-
-  if (db.automation.logs.length > 200) {
-    db.automation.logs.pop();
-  }
+export const addAutomationLog = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    const newLog = { timestamp: new Date().toISOString(), message, type };
+    db.automation.logs.unshift(newLog); // Add to the top
+    if (db.automation.logs.length > 200) { // Keep logs from growing indefinitely
+        db.automation.logs.pop();
+    }
 };
 
-// -------------------------------
-// Settings
-// -------------------------------
 export const getSettings = () => db.settings;
-
 export const updateSettings = (newSettings: Partial<Settings>) => {
-  db.settings = {
-    ...db.settings,
-    ...newSettings,
-    watermarkDefaults: {
-      ...db.settings.watermarkDefaults,
-      ...(newSettings.watermarkDefaults || {}),
-    },
-  };
-  return db.settings;
+    db.settings = { ...db.settings, ...newSettings };
+    // In a real app, you might merge nested objects like watermarkDefaults more carefully
+    if (newSettings.watermarkDefaults) {
+        db.settings.watermarkDefaults = { ...db.settings.watermarkDefaults, ...newSettings.watermarkDefaults };
+    }
+    return db.settings;
 };

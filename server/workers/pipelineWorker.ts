@@ -1,89 +1,56 @@
 // server/workers/pipelineWorker.ts
-import { Worker } from "bullmq";
-import { redisConnection, renderQueue, publishQueue } from "../queues";
-import { renderDraft, publishDraft } from "../services/pipeline";
-import * as db from "../db";
+import { Worker } from 'bullmq';
+import { redisConnection, renderQueue, publishQueue } from '../queues';
+import { renderDraft, publishDraft } from '../services/pipeline';
+import * as db from '../db';
 
 interface PipelineJobData {
   draftId: string;
 }
 
-const log = (type: "info" | "success" | "error", msg: string) => {
-  const entry = `[PIPELINE_WORKER] [${new Date().toISOString()}] [${type}] ${msg}`;
-  console.log(entry);
-  db.addAutomationLog(entry, type);
-};
+console.log(`[${new Date().toISOString()}] Starting Pipeline Workers (Render & Publish)...`);
 
-console.log(`[${new Date().toISOString()}] Pipeline Workers Online…`);
+// Worker for the 'render' queue
+new Worker<PipelineJobData, void, string>(renderQueue.name, async (job) => {
+  const { draftId } = job.data;
 
-// ───────────────────────────────────────────
-// RENDER WORKER
-// ───────────────────────────────────────────
-new Worker<PipelineJobData>(
-  renderQueue.name,
-  async (job) => {
-    const { draftId } = job.data;
-
-    if (!draftId) {
-      throw new Error(`Render worker received invalid draftId for job ${job.id}`);
-    }
-
-    log("info", `Render start → job ${job.id}, draft ${draftId}`);
-
-    try {
-      await renderDraft(draftId);
-
-      await publishQueue.add("publish-video", { draftId });
-
-      log(
-        "success",
-        `Render complete → job ${job.id}, enqueued publish for draft ${draftId}`
-      );
-    } catch (err: any) {
-      const msg =
-        err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
-      log("error", `Render failed → job ${job.id}, draft ${draftId}: ${msg}`);
-      throw err;
-    }
-  },
-  {
-    connection: redisConnection,
-    concurrency: 1, // Rendering is heavy
+  if (!draftId || typeof draftId !== 'string') {
+    throw new Error(`Invalid draftId in job ${job.id}: ${draftId}`);
   }
-);
 
-// ───────────────────────────────────────────
-// PUBLISH WORKER
-// ───────────────────────────────────────────
-new Worker<PipelineJobData>(
-  publishQueue.name,
-  async (job) => {
-    const { draftId } = job.data;
-
-    if (!draftId) {
-      throw new Error(
-        `Publish worker received invalid draftId for job ${job.id}`
-      );
-    }
-
-    log("info", `Publish start → job ${job.id}, draft ${draftId}`);
-
-    try {
-      await publishDraft(draftId);
-
-      log(
-        "success",
-        `Publish complete → job ${job.id}, draft ${draftId}`
-      );
-    } catch (err: any) {
-      const msg =
-        err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
-      log("error", `Publish failed → job ${job.id}, draft ${draftId}: ${msg}`);
-      throw err;
-    }
-  },
-  {
-    connection: redisConnection,
-    concurrency: 2, // Publishing is light
+  db.addAutomationLog(`[${new Date().toISOString()}] Render worker processing job ${job.id} for draft ${draftId}`);
+  try {
+    await renderDraft(draftId);
+    await publishQueue.add('publish-video', { draftId });
+    db.addAutomationLog(`[${new Date().toISOString()}] Render successful for job ${job.id}. Enqueued publish job for draft ${draftId}.`);
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Render worker job ${job.id} failed for draft ${draftId}: ${message}`, 'error');
+    throw error;
   }
-);
+}, {
+  connection: redisConnection,
+  // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
+});
+
+// Worker for the 'publish' queue
+new Worker<PipelineJobData, void, string>(publishQueue.name, async (job) => {
+  const { draftId } = job.data;
+
+  if (!draftId || typeof draftId !== 'string') {
+    throw new Error(`Invalid draftId in job ${job.id}: ${draftId}`);
+  }
+
+  db.addAutomationLog(`[${new Date().toISOString()}] Publish worker processing job ${job.id} for draft ${draftId}`);
+  try {
+    await publishDraft(draftId);
+    db.addAutomationLog(`[${new Date().toISOString()}] Successfully published draft ${draftId} for job ${job.id}.`, 'success');
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Publish worker job ${job.id} failed for draft ${draftId}: ${message}`, 'error');
+    throw error;
+  }
+}, {
+  connection: redisConnection,
+  // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
+});
