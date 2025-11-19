@@ -1,47 +1,31 @@
 // server/routes/discovery.ts
-import express, { Request, Response } from "express";
-import { discoveryQueue } from "../queues";
+// FIX: Changed import to default express and use explicit types to avoid global type conflicts.
+import express from 'express';
+import { discoveryQueue, queuesReady } from '../queues';
 
 export const router = express.Router();
 
 // POST /api/discovery/run
-router.post("/run", async (req: Request, res: Response) => {
-  try {
-    const { niche, platforms, geo = "US" } = req.body;
-
-    if (
-      !niche ||
-      typeof niche !== "string" ||
-      !Array.isArray(platforms) ||
-      platforms.length === 0
-    ) {
-      return res.status(400).json({
-        ok: false,
-        error: "Invalid payload. Required: niche:string, platforms:string[].",
-      });
+// This endpoint now enqueues a job instead of running the discovery synchronously.
+// FIX: Used express.Request and express.Response for correct typing.
+router.post('/run', async (req: express.Request, res: express.Response) => {
+    // Add guard clause to check for queue system readiness
+    if (!queuesReady || !discoveryQueue) {
+        return res.status(503).json({ error: 'Queue system is not available. Please ensure Redis is running and configured.' });
     }
 
-    await discoveryQueue.add(
-      "on-demand-discovery",
-      { niche, platforms, geo },
-      {
-        attempts: 3,
-        backoff: { type: "exponential", delay: 2000 },
-        removeOnComplete: 500,
-        removeOnFail: 200,
-      }
-    );
+    try {
+        const { niche, platforms, geo = 'US' } = req.body;
+        if (!niche || !platforms) {
+            return res.status(400).json({ error: 'Niche and platforms are required.' });
+        }
 
-    return res.status(202).json({
-      ok: true,
-      message:
-        "Discovery job accepted. Your trending topics will be processed in the background.",
-    });
-  } catch (err: any) {
-    console.error("Discovery enqueue error:", err);
-    return res.status(500).json({
-      ok: false,
-      error: "Failed to enqueue discovery job.",
-    });
-  }
+        // Add a job to the queue for background processing.
+        await discoveryQueue.add('on-demand-discovery', { niche, platforms, geo });
+
+        res.status(202).json({ message: 'Discovery agent has been dispatched. Results will be processed in the background.' });
+    } catch (error) {
+        console.error('Discovery enqueue error:', error);
+        res.status(500).json({ error: 'Failed to enqueue discovery job.' });
+    }
 });

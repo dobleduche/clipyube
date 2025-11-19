@@ -25,13 +25,13 @@ const MotionDiv = motion.div;
 const App: React.FC = () => {
   const { route, blogPosts } = useAppContext();
   const { settings } = useSettings();
-
+  
   const isLandingPage = route === '/' || route === '#/';
 
   const renderContent = () => {
     if (route.startsWith('#/blog/')) {
-      const slug = route.split('#/blog/')[1];
-      return <BlogPage posts={blogPosts} slug={slug} />;
+        const slug = route.split('#/blog/')[1];
+        return <BlogPage posts={blogPosts} slug={slug} />;
     }
 
     switch (route) {
@@ -63,12 +63,8 @@ const App: React.FC = () => {
         return (
           <>
             <div className="text-center mb-8">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-2 font-oswald tracking-wide text-gradient-cyan-sanguine">
-                AI Image &amp; Video Editor
-              </h2>
-              <p className="text-lg text-gray-400">
-                Bring your creative visions to life with a simple text prompt.
-              </p>
+              <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-2 font-oswald tracking-wide text-gradient-cyan-sanguine">AI Image &amp; Video Editor</h2>
+              <p className="text-lg text-gray-400">Bring your creative visions to life with a simple text prompt.</p>
             </div>
             <ImageEditor />
           </>
@@ -95,27 +91,21 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen text-gray-200 flex flex-col">
       <Navbar />
-      <main
-        className={`flex-grow w-full ${
-          !isLandingPage ? 'container mx-auto p-4 md:p-8' : ''
-        }`}
-      >
-        {!isLandingPage && settings.profileName && (
-          <p className="text-right text-slate-400 mb-4 -mt-2">
-            Welcome back, {settings.profileName}!
-          </p>
-        )}
+      <main className={`flex-grow w-full ${!isLandingPage ? 'container mx-auto p-4 md:p-8' : ''}`}>
+         {!isLandingPage && settings.profileName && (
+            <p className="text-right text-slate-400 mb-4 -mt-2">Welcome back, {settings.profileName}!</p>
+         )}
         <AnimatePresence mode="wait">
-          <MotionDiv
-            key={route}
-            initial="initial"
-            animate="in"
-            exit="out"
-            variants={pageVariants}
-            transition={pageTransition}
-          >
-            {renderContent()}
-          </MotionDiv>
+            <MotionDiv
+                key={route}
+                initial="initial"
+                animate="in"
+                exit="out"
+                variants={pageVariants}
+                transition={pageTransition}
+            >
+                {renderContent()}
+            </MotionDiv>
         </AnimatePresence>
       </main>
       <Footer />

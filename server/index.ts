@@ -1,21 +1,11 @@
-// server/index.ts
-import "dotenv/config";
-import "./queues";        // ensure redisConnection + queues set up
-import "./videoWorkers";  // spins up the Workers and starts processing jobs
-import express, {
-  Request,
-  Response,
-  NextFunction,
-  ErrorRequestHandler,
-} from "express";
+import dotenv from "dotenv";
+dotenv.config();
 
+// FIX: Changed to default import to use explicit types like express.Request and avoid global type conflicts.
+import express from "express";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
-import path from "path";
-import fs from "fs";
-import helmet from "helmet";
 
-// Routers
+// Router Imports
 import { router as generate } from "./routes/generate";
 import { router as discovery } from "./routes/discovery";
 import { router as publish } from "./routes/publish";
@@ -23,11 +13,12 @@ import { router as clips } from "./routes/clips";
 import { router as automation } from "./routes/automation";
 import { router as blog } from "./routes/blog";
 
-// ---------------------------------------------
-// WORKER BOOT
-// ---------------------------------------------
-async function bootWorkers() {
-  const workers = [
+/**
+ * Dynamically imports and initializes all BullMQ workers.
+ * This ensures that all background job processors are running.
+ */
+const bootWorkers = () => {
+  const workerPaths = [
     "./workers/automationWorker",
     "./workers/captionWorker",
     "./workers/discoveryWorker",
@@ -37,57 +28,29 @@ async function bootWorkers() {
     "./workers/thumbnailWorker",
   ];
 
-  for (const worker of workers) {
+  workerPaths.forEach(async (workerPath) => {
     try {
-      await import(worker);
-      console.log(`[Worker] Booted: ${worker}`);
-    } catch (err) {
-      console.error(`[Worker] Failed to boot ${worker}:`, err);
+      await import(workerPath);
+      console.log(`[Server] Booted worker: ${workerPath}`);
+    } catch (error) {
+      console.error(`[Server] Failed to boot worker ${workerPath}:`, error);
     }
-  }
-}
+  });
+};
 
-// ---------------------------------------------
-// EXPRESS INIT
-// ---------------------------------------------
 const app = express();
 
-app.get("/api/clips/logs/:tenantId", sseLogs);
+// Use the cors middleware for robust CORS handling
+app.use(cors());
 
-// ---------------------------------------------
-// SECURITY MIDDLEWARES
-// ---------------------------------------------
-app.use(
-  helmet({
-    contentSecurityPolicy: false, // Allow Vite bundles
-  })
-);
-
-app.use(
-  cors({
-    origin: "*", // You can tighten later
-    methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-  })
-);
-
+// Body Parsers
 app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// ---------------------------------------------
-// RATE LIMIT — API ONLY
-// ---------------------------------------------
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Serve generated assets statically
+app.use("/generated", express.static("generated"));
 
-app.use("/api", apiLimiter);
-
-// ---------------------------------------------
-// API ROUTES
-// ---------------------------------------------
+// API Routes
 app.use("/api/generate", generate);
 app.use("/api/discovery", discovery);
 app.use("/api/publish", publish);
@@ -95,77 +58,26 @@ app.use("/api/clips", clips);
 app.use("/api/automation", automation);
 app.use("/api/blog", blog);
 
-// Health Check
-app.get("/api/health", (_req: Request, res: Response) =>
-  res.status(200).json({ ok: true, status: "healthy" })
-);
+// Health Check Endpoint
+// FIX: Used express.Request and express.Response to avoid type conflicts.
+app.get("/api/health", (_req: express.Request, res: express.Response) => res.status(200).json({ status: "ok" }));
 
-// ---------------------------------------------
-// FRONTEND SERVING (Vite build)
-// ---------------------------------------------
-const distDir = path.join(process.cwd(), "dist");
-const indexHtmlPath = path.join(distDir, "index.html");
-
-let indexHtmlCache: string | null = null;
-
-// Attempt to load index.html if exists
-if (fs.existsSync(indexHtmlPath)) {
-  try {
-    indexHtmlCache = fs.readFileSync(indexHtmlPath, "utf8");
-    console.log("[Server] Cached index.html");
-  } catch (err) {
-    console.error("[Server] Failed to cache index.html:", err);
-  }
-}
-
-// Serve static frontend
-app.use(express.static(distDir));
-
-// Fallback to index.html for SPA — only when NOT an API route
-app.get("*", (req: Request, res: Response) => {
-  if (req.path.startsWith("/api")) {
-    return res.status(404).json({ error: "Not Found" });
-  }
-
-  if (indexHtmlCache) {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    return res.send(indexHtmlCache);
-  }
-
-  res.sendFile(indexHtmlPath);
-});
-
-// ---------------------------------------------
-// ERROR HANDLER
-// ---------------------------------------------
-const errorHandler: ErrorRequestHandler = (
-  err,
-  _req,
-  res,
-  _next
-) => {
-  console.error("[Server Error]", err);
-  
-  res.status(err.status || 500).json({
-    ok: false,
-    error: err.message || "Internal Server Error",
-  });
+// Generic Error Handler
+// FIX: Correctly typed ErrorRequestHandler arguments to ensure type safety.
+const errorHandler: express.ErrorRequestHandler = (err, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = (err as any).status || 500;
+  const message = err.message || "Internal Server Error";
+  console.error("[Server] Error:", { status, message, stack: err.stack });
+  res.status(status).json({ ok: false, error: message });
 };
-
 app.use(errorHandler);
 
-// ---------------------------------------------
-// START SERVER
-// ---------------------------------------------
-const port = Number(process.env.PORT || 3001);
+const port = Number(process.env.PORT) || 3001;
+if (!process.env.PORT) {
+  console.warn("[Server] PORT not set in .env, using default 3001");
+}
 
-app.listen(port, async () => {
-  console.log(`🚀 Server running on port ${port}`);
-  await bootWorkers();
+app.listen(port, () => {
+  console.log(`[Server] API up and running on http://localhost:${port}`);
+  bootWorkers();
 });
-
-// Graceful shutdown
-process.on("SIGTERM", () => process.exit(0));
-process.on("SIGINT", () => process.exit(0));
-
-export default app;

@@ -1,98 +1,123 @@
 // server/queues.ts
-import { Queue, QueueOptions, JobsOptions } from "bullmq";
-import IORedis from "ioredis";
+// FIX: Changed JobOptions to JobsOptions
+import { Queue, JobsOptions, QueueOptions } from 'bullmq';
+import IORedis from 'ioredis';
 
-// -----------------------------------------
-// Redis Connection
-// -----------------------------------------
-export const redisConnection = new IORedis(
-  process.env.REDIS_URL || "redis://localhost:6379",
-  {
-    maxRetriesPerRequest: null,
-  }
-);
+// --- Fault-Tolerant Initialization ---
+// Export queue variables, which will be undefined if initialization fails.
+export let discoveryQueue: Queue;
+export let generationQueue: Queue;
+export let thumbnailQueue: Queue;
+export let renderQueue: Queue;
+export let publishQueue: Queue;
+export let automationQueue: Queue;
+export let transcodeQueue: Queue;
+export let captionQueue: Queue;
+export let redisConnection: IORedis;
 
-redisConnection.on("error", (err) => {
-  console.error(
-    "[Redis] Connection error. Queue processing may be degraded:",
-    err
-  );
-});
+// This flag indicates if the queues are operational.
+export let queuesReady = false;
 
-// -----------------------------------------
-// Shared Queue Defaults
-// -----------------------------------------
-const defaultJobOptions: JobsOptions = {
-  attempts: 3,
-  backoff: {
-    type: "exponential",
-    delay: 2000,
-  },
-  removeOnComplete: 200,
-  removeOnFail: 100,
-};
+// FIX: Moved defaultQueueOptions outside the try block so it's accessible to other functions.
+let defaultQueueOptions: QueueOptions;
 
-const defaultQueueOptions: QueueOptions = {
-  connection: redisConnection,
-  defaultJobOptions,
-};
+try {
+  // Configure Redis connection
+  redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    maxRetriesPerRequest: null, // Important for BullMQ
+  });
 
-// -----------------------------------------
-// Queue Factory
-// -----------------------------------------
-const createQueue = (name: string): Queue => {
-  return new Queue(name, defaultQueueOptions);
-};
+  redisConnection.on('error', (err) => {
+    if (queuesReady) { // If it was connected before
+        console.error('[Queues] Redis connection lost. Queuing will be paused.', err.message);
+    }
+    queuesReady = false;
+  });
 
-// -----------------------------------------
-// Unified Queue List
-// -----------------------------------------
-export const discoveryQueue = createQueue("discovery");
-export const generationQueue = createQueue("generation");
-export const renderQueue = createQueue("render");
-export const publishQueue = createQueue("publish");
+  redisConnection.on('connect', () => {
+    if (!queuesReady) {
+        console.log('[Queues] Redis connection established.');
+        // This is a good place to re-verify queue health if needed in a more complex setup.
+    }
+  });
 
-export const automationQueue = createQueue("automation");
-export const transcodeQueue = createQueue("transcode");
-export const captionQueue = createQueue("caption");
-export const thumbnailQueue = createQueue("thumbnail");
+  // Assign inside try block after connection is established
+  defaultQueueOptions = {
+    connection: redisConnection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: 100,
+    },
+  };
 
-// -----------------------------------------
-// Automation Scheduler (repeat discovery)
-// -----------------------------------------
+  // Initialize all queues
+  discoveryQueue = new Queue('discovery', defaultQueueOptions);
+  generationQueue = new Queue('generation', defaultQueueOptions);
+  thumbnailQueue = new Queue('thumbnail', defaultQueueOptions);
+  renderQueue = new Queue('render', defaultQueueOptions);
+  publishQueue = new Queue('publish', defaultQueueOptions);
+  automationQueue = new Queue('automation', defaultQueueOptions);
+  transcodeQueue = new Queue('transcode', defaultQueueOptions);
+  captionQueue = new Queue('caption', defaultQueueOptions);
+  
+  queuesReady = true;
+  console.log('[Queues] Successfully initialized BullMQ queues.');
+
+} catch (error) {
+  console.error('[Queues] CRITICAL: Failed to initialize BullMQ queues. This is likely due to a Redis connection issue. Queue-dependent features will be unavailable.', error);
+  queuesReady = false;
+}
+// --- End Fault-Tolerant Initialization ---
+
+
+// Function to schedule the main automation task
 export async function scheduleAutomation(intervalMs: number): Promise<void> {
-  const jobName = "automated-discovery-cycle";
-
-  const existing = await discoveryQueue.getRepeatableJobs();
-  for (const job of existing) {
-    if (job.name === jobName) {
-      await discoveryQueue.removeRepeatableByKey(job.key);
-    }
+  if (!queuesReady || !discoveryQueue || !defaultQueueOptions) {
+    const msg = '[Scheduler] Cannot schedule automation, queues are not ready.';
+    console.error(msg);
+    throw new Error(msg);
   }
 
-  await discoveryQueue.add(
-    jobName,
-    {},
-    {
-      repeat: { every: intervalMs },
-      ...defaultJobOptions,
+  const jobName = 'automated-discovery-cycle';
+  try {
+    const repeatableJobs = await discoveryQueue.getRepeatableJobs();
+    for (const job of repeatableJobs) {
+      if (job.name === jobName) {
+        await discoveryQueue.removeRepeatableByKey(job.key);
+      }
     }
-  );
 
-  console.log(
-    `[Scheduler] Next cycle running every ${intervalMs / 1000} seconds`
-  );
+    await discoveryQueue.add(
+      jobName,
+      {}, // No data needed, worker will fetch settings
+      { repeat: { every: intervalMs }, ...(defaultQueueOptions.defaultJobOptions as JobsOptions) }
+    );
+    console.log(`[Scheduler] Automation job scheduled to run every ${intervalMs / 1000} seconds.`);
+  } catch (error) {
+    console.error('[Scheduler] Failed to schedule automation job:', error);
+    throw error;
+  }
 }
 
+// Function to remove the automation schedule
 export async function removeAutomationSchedule(): Promise<void> {
-  const jobName = "automated-discovery-cycle";
-
-  const existing = await discoveryQueue.getRepeatableJobs();
-  for (const job of existing) {
-    if (job.name === jobName) {
-      await discoveryQueue.removeRepeatableByKey(job.key);
+    if (!queuesReady || !discoveryQueue) {
+        console.warn('[Scheduler] Cannot remove schedule, queues are not ready.');
+        return;
     }
+  const jobName = 'automated-discovery-cycle';
+  try {
+    const repeatableJobs = await discoveryQueue.getRepeatableJobs();
+    for (const job of repeatableJobs) {
+      if (job.name === jobName) {
+        await discoveryQueue.removeRepeatableByKey(job.key);
+      }
+    }
+    console.log('[Scheduler] Automation schedule removed.');
+  } catch (error) {
+    console.error('[Scheduler] Failed to remove automation schedule:', error);
+    throw error;
   }
-
-  console.log("[Scheduler] Discovery cycle removed");
 }
