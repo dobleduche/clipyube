@@ -1,5 +1,4 @@
 // server/routes/clips.ts
-// FIX: Changed import to default express and use explicit types to avoid global type conflicts.
 import express from "express";
 import { Redis } from "ioredis";
 import { Queue } from "bullmq";
@@ -18,8 +17,7 @@ const r: Redis = redisConnection;
  * Body: { url: string; tenant?: string }
  * Push a clip URL into the inbox and nudge the automation queue.
  */
-// FIX: Used express.Request and express.Response for correct typing.
-router.post("/ingest", async (req: express.Request, res: express.Response) => {
+router.post("/ingest", async (req, res) => {
   if (!queuesReady || !automationQ || !r) {
     return res.status(503).json({ ok: false, error: "Queue system is not available. Please ensure Redis is running." });
   }
@@ -45,8 +43,7 @@ router.post("/ingest", async (req: express.Request, res: express.Response) => {
  * GET /api/clips/logs/:tenant
  * Server-Sent Events stream for real-time logs filtered by tenant.
  */
-// FIX: Used express.Request and express.Response for correct typing.
-router.get("/logs/:tenant", async (req: express.Request, res: express.Response) => {
+router.get("/logs/:tenant", async (req, res) => {
   if (!r) {
     res.setHeader("Content-Type", "text/event-stream");
     res.write(`event: error\ndata: ${JSON.stringify({ error: "Redis connection not available." })}\n\n`);
@@ -112,7 +109,8 @@ router.get("/logs/:tenant", async (req: express.Request, res: express.Response) 
     } catch {}
   };
   
-  req.on("close", cleanup);
+  // Use res.on('close') instead of req.on('close') for better compatibility and type safety
+  res.on("close", cleanup);
 });
 
 export default router;

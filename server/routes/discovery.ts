@@ -1,5 +1,4 @@
 // server/routes/discovery.ts
-// FIX: Changed import to default express and use explicit types to avoid global type conflicts.
 import express from 'express';
 import { discoveryQueue, queuesReady } from '../queues';
 
@@ -7,8 +6,7 @@ export const router = express.Router();
 
 // POST /api/discovery/run
 // This endpoint now enqueues a job instead of running the discovery synchronously.
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/run', async (req: express.Request, res: express.Response) => {
+router.post('/run', async (req, res) => {
     // Add guard clause to check for queue system readiness
     if (!queuesReady || !discoveryQueue) {
         return res.status(503).json({ error: 'Queue system is not available. Please ensure Redis is running and configured.' });

@@ -1,5 +1,4 @@
 // server/routes/blog.ts
-// FIX: Changed import to default express and use explicit types to avoid global type conflicts.
 import express from 'express';
 import * as db from '../db';
 
@@ -9,8 +8,7 @@ export const router = express.Router();
  * GET /api/blog
  * Retrieves all blog posts from the database.
  */
-// FIX: Used express.Request and express.Response for correct typing.
-router.get('/', (_req: express.Request, res: express.Response) => {
+router.get('/', (_req, res) => {
     try {
         // The posts are stored newest first, so we reverse for chronological display if needed,
         // but for now, returning as-is is fine (newest first).
@@ -25,8 +23,7 @@ router.get('/', (_req: express.Request, res: express.Response) => {
  * DELETE /api/blog/:slug
  * Deletes a blog post by its slug.
  */
-// FIX: Used express.Request and express.Response for correct typing.
-router.delete('/:slug', (req: express.Request, res: express.Response) => {
+router.delete('/:slug', (req, res) => {
     try {
         const { slug } = req.params;
         if (!slug) {

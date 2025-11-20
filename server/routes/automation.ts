@@ -1,5 +1,4 @@
 // server/routes/automation.ts
-// FIX: Changed import to default express and use explicit types to avoid global type conflicts.
 import express from 'express';
 import * as db from '../db';
 import { discoveryQueue, scheduleAutomation, removeAutomationSchedule, queuesReady } from '../queues';
@@ -7,20 +6,17 @@ import { discoveryQueue, scheduleAutomation, removeAutomationSchedule, queuesRea
 export const router = express.Router();
 
 // GET /api/automation/status
-// FIX: Used express.Request and express.Response for correct typing.
-router.get('/status', (_req: express.Request, res: express.Response) => {
+router.get('/status', (_req, res) => {
     res.json(db.getAutomationState());
 });
 
 // GET /api/automation/logs
-// FIX: Used express.Request and express.Response for correct typing.
-router.get('/logs', (_req: express.Request, res: express.Response) => {
+router.get('/logs', (_req, res) => {
     res.json(db.getAutomationState().logs);
 });
 
 // POST /api/automation/start
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/start', async (_req: express.Request, res: express.Response) => {
+router.post('/start', async (_req, res) => {
     if (!queuesReady) {
         return res.status(503).json({ error: 'Queue system is not available. Please ensure Redis is running and configured.' });
     }
@@ -50,8 +46,7 @@ router.post('/start', async (_req: express.Request, res: express.Response) => {
 });
 
 // POST /api/automation/stop
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/stop', async (_req: express.Request, res: express.Response) => {
+router.post('/stop', async (_req, res) => {
     if (!queuesReady) {
         return res.status(503).json({ error: 'Queue system is not available. Please ensure Redis is running and configured.' });
     }
@@ -69,14 +64,12 @@ router.post('/stop', async (_req: express.Request, res: express.Response) => {
 });
 
 // GET /api/automation/settings
-// FIX: Used express.Request and express.Response for correct typing.
-router.get('/settings', (_req: express.Request, res: express.Response) => {
+router.get('/settings', (_req, res) => {
     res.json(db.getSettings());
 });
 
 // POST /api/automation/settings
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/settings', (req: express.Request, res: express.Response) => {
+router.post('/settings', (req, res) => {
     const newSettings = req.body;
     const updatedSettings = db.updateSettings(newSettings);
     
