@@ -206,6 +206,8 @@ const videoStyles = [
     { name: 'Vlog', description: 'Handheld, personal, and conversational style.' },
 ];
 
+const searchStyles = ['None', 'Photorealistic', 'Cinematic', 'Anime', 'Digital Art', 'Oil Painting', 'Sketch', 'Cyberpunk', 'Minimalist'];
+
 
 // Define a unified state for the history stack
 interface HistoryState {
@@ -261,7 +263,7 @@ const HistoryPanel: React.FC<{
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onClone(index); }}
-                        className="flex-shrink-0 p-2 rounded-full text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                        className="flex-shrink-0 p-2 rounded-full text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
                         title="Clone this step to start a new branch"
                         aria-label={`Clone step ${index + 1}`}
                     >
@@ -370,6 +372,7 @@ export const ImageEditor: React.FC = () => {
 
     // Image Search state
     const [imageSearchQuery, setImageSearchQuery] = useState<string>('');
+    const [imageSearchStyle, setImageSearchStyle] = useState<string>('Photorealistic');
     const [imageSearchResults, setImageSearchResults] = useState<string[]>([]);
     const [isSearchingImages, setIsSearchingImages] = useState<boolean>(false);
 
@@ -1045,11 +1048,12 @@ export const ImageEditor: React.FC = () => {
         const clonedState: HistoryState = {
             ...stateToClone,
             id: `hist-cloned-${Date.now()}`,
-            action: `Cloned: "${stateToClone.action.substring(0, 20)}..."`
+            action: `Branch from Step ${indexToClone + 1}`
         };
 
-        // Create a new branch from the current point, discarding any "redo" steps
-        const newHistory = [...history.slice(0, currentHistoryIndex + 1), clonedState];
+        // Create a new branch by appending to the end of history.
+        // This preserves the original branch (and any redo history) while starting a new timeline.
+        const newHistory = [...history, clonedState];
         setHistory(newHistory);
         setCurrentHistoryIndex(newHistory.length - 1);
     };
@@ -1116,7 +1120,11 @@ export const ImageEditor: React.FC = () => {
         setError(null);
         setImageSearchResults([]);
         try {
-            const results = await searchImages(imageSearchQuery);
+            const finalPrompt = imageSearchStyle === 'None' 
+                ? imageSearchQuery 
+                : `${imageSearchQuery}, ${imageSearchStyle} style`;
+                
+            const results = await searchImages(finalPrompt);
             if (results.length === 0) {
                 setError('No images found for your query.');
             }
@@ -1599,23 +1607,35 @@ export const ImageEditor: React.FC = () => {
                 
                 <ToolOptionsPanel title="Image Search" icon={<SearchIcon />} isOpen={toolIsActive('image-search')} onToggle={() => toggleTool('image-search')}>
                     <div className="space-y-4">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={imageSearchQuery}
-                                onChange={(e) => setImageSearchQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && !isSearchingImages && handleImageSearch()}
-                                placeholder="e.g., A photorealistic cat astronaut"
-                                className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg"
+                         <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={imageSearchQuery}
+                                    onChange={(e) => setImageSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && !isSearchingImages && handleImageSearch()}
+                                    placeholder="e.g., A photorealistic cat astronaut"
+                                    className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg"
+                                    disabled={isSearchingImages}
+                                />
+                                <button
+                                    onClick={handleImageSearch}
+                                    disabled={isSearchingImages || !imageSearchQuery.trim()}
+                                    className="flex items-center justify-center gap-2 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-500 disabled:bg-slate-600 transition-colors"
+                                >
+                                    {isSearchingImages ? <Loader /> : <SearchIcon />}
+                                </button>
+                            </div>
+                            <select
+                                value={imageSearchStyle}
+                                onChange={(e) => setImageSearchStyle(e.target.value)}
+                                className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-300 text-sm focus:ring-2 focus:ring-cyan-500 outline-none"
                                 disabled={isSearchingImages}
-                            />
-                            <button
-                                onClick={handleImageSearch}
-                                disabled={isSearchingImages || !imageSearchQuery.trim()}
-                                className="flex items-center justify-center gap-2 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-500 disabled:bg-slate-600 transition-colors"
                             >
-                                {isSearchingImages ? <Loader /> : <SearchIcon />}
-                            </button>
+                                {searchStyles.map(style => (
+                                    <option key={style} value={style}>{style}</option>
+                                ))}
+                            </select>
                         </div>
 
                         {isSearchingImages && (

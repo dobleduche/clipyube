@@ -1,5 +1,5 @@
 import "dotenv/config"; // Load environment variables before other imports
-import express, { NextFunction } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 
 // Router Imports
@@ -56,12 +56,12 @@ app.use("/api/automation", automation);
 app.use("/api/blog", blog);
 
 // Health Check Endpoint
-app.get("/api/health", (_req: express.Request, res: express.Response) => {
+app.get("/api/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
 });
 
 // Generic Error Handler
-const errorHandler = (err: any, _req: express.Request, res: express.Response, _next: NextFunction) => {
+const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || 500;
   const message = err.message || "Internal Server Error";
   console.error("[Server] Error:", { status, message, stack: err.stack });
