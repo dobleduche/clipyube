@@ -1,4 +1,3 @@
-// FIX: Changed import to default express and use explicit types to avoid global type conflicts.
 import express from 'express';
 import * as llm from '../adapters/llm';
 import * as analysisService from '../services/analysisService';
@@ -10,8 +9,7 @@ import { ContentIdea } from '../../services/viralAgentService';
 export const router = express.Router();
 
 // POST /api/generate/text
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/text', async (req: express.Request, res: express.Response) => {
+router.post('/text', async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) {
@@ -26,8 +24,7 @@ router.post('/text', async (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/generate/blog
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/blog', async (req: express.Request, res: express.Response) => {
+router.post('/blog', async (req, res) => {
   try {
     const { idea }: { idea: ContentIdea } = req.body;
     if (!idea) {
@@ -94,8 +91,7 @@ router.post('/blog', async (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/generate/image
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/image', async (req: express.Request, res: express.Response) => {
+router.post('/image', async (req, res) => {
   try {
     const { base64Data, mimeType, prompt, operationDescription, styleBase64, styleMimeType } = req.body;
     if (!base64Data || !mimeType || !prompt) {
@@ -110,8 +106,7 @@ router.post('/image', async (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/generate/search-images
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/search-images', async (req: express.Request, res: express.Response) => {
+router.post('/search-images', async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) {

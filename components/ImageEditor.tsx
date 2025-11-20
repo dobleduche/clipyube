@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, searchImages } from '../services/geminiService';
 import { generateVideoWithRunway } from '../services/runwayService';
@@ -16,6 +17,7 @@ import { useDebouncedCallback } from 'use-debounce';
 const EDITOR_STATE_KEY = 'clipyube-editor-state';
 const CUSTOM_FILTERS_KEY = 'clipyube-custom-filters';
 const VIDEO_PRESETS_KEY = 'clipyube-video-presets';
+const SAVED_PROJECT_KEY = 'clipyube-saved-project';
 
 type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'devicepreview' | 'video' | 'watermark' | 'ai-edit' | 'effects' | 'brush' | 'image-search' | 'history';
 
@@ -243,22 +245,24 @@ const HistoryPanel: React.FC<{
                 <motion.div
                     key={state.id}
                     data-index={index}
-                    className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors relative group ${currentIndex === index ? 'bg-cyan-500/20' : 'hover:bg-white/10'}`}
+                    className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors ${currentIndex === index ? 'bg-cyan-500/20' : 'hover:bg-white/10'}`}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2, delay: index * 0.05 }}
                 >
-                    <button onClick={() => onJump(index)} className="flex items-center gap-3 flex-grow text-left" aria-label={`Jump to step ${index + 1}: ${state.action}`}>
-                        <img src={state.imageUrl} alt={state.action} className="w-10 h-10 object-cover rounded-md flex-shrink-0" />
+                    <button onClick={() => onJump(index)} className="flex items-center gap-3 flex-grow text-left min-w-0 group">
+                        <div className="relative w-10 h-10 flex-shrink-0">
+                             <img src={state.imageUrl} alt={state.action} className="w-full h-full object-cover rounded-md border border-white/10" />
+                        </div>
                         <div className="flex-grow overflow-hidden">
-                            <p className={`text-sm truncate ${currentIndex === index ? 'text-cyan-300 font-semibold' : 'text-slate-200'}`}>{state.action}</p>
-                             <p className="text-xs text-slate-400">Step {index + 1}</p>
+                            <p className={`text-sm truncate font-medium ${currentIndex === index ? 'text-cyan-300' : 'text-slate-200'}`}>{state.action}</p>
+                             <p className="text-xs text-slate-500">Step {index + 1}</p>
                         </div>
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onClone(index); }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-slate-700 hover:bg-cyan-600 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-                        title="Clone this step to create a new branch"
+                        className="flex-shrink-0 p-2 rounded-full text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                        title="Clone this step to start a new branch"
                         aria-label={`Clone step ${index + 1}`}
                     >
                         <CloneIcon />
@@ -855,6 +859,102 @@ export const ImageEditor: React.FC = () => {
         }
     };
 
+    const handleSaveProject = useCallback(() => {
+        if (!currentHistoryState) {
+            alert("No active project to save.");
+            return;
+        }
+        
+        // Flush pending adjustments if any
+        debouncedUpdateHistoryForAdjustments.flush();
+
+        // Serialize history excluding File objects which are not stringifiable
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const serializedHistory = history.map(({ imageFile, ...rest }) => rest);
+
+        const projectData = {
+            version: 2,
+            history: serializedHistory,
+            currentIndex: currentHistoryIndex,
+            prompt,
+            quality,
+            // Keep legacy fields for backward compatibility if loaded by older versions
+            imageUrl: currentHistoryState.imageUrl,
+            activeFilter: currentHistoryState.activeFilter,
+            adjustments: currentHistoryState.adjustments
+        };
+
+        try {
+            localStorage.setItem(SAVED_PROJECT_KEY, JSON.stringify(projectData));
+            alert("Project saved to local storage!");
+        } catch (e) {
+            console.error("Save failed", e);
+            alert("Failed to save project. The image might be too large for your browser's storage.");
+        }
+    }, [currentHistoryState, history, currentHistoryIndex, prompt, quality, debouncedUpdateHistoryForAdjustments]);
+
+    const handleLoadProject = useCallback(async () => {
+        const savedJSON = localStorage.getItem(SAVED_PROJECT_KEY);
+        if (!savedJSON) {
+            alert("No saved project found.");
+            return;
+        }
+
+        if (currentHistoryState && !window.confirm("This will overwrite your current work. Continue?")) {
+            return;
+        }
+
+        setIsLoading(true);
+        setLoadingMessage("Loading project...");
+
+        try {
+            const projectData = JSON.parse(savedJSON);
+            let restoredHistory: HistoryState[] = [];
+            let restoredIndex = 0;
+
+            if (projectData.version === 2 && Array.isArray(projectData.history)) {
+                // Restore full history from V2 format
+                restoredHistory = await Promise.all(projectData.history.map(async (item: any) => {
+                    const file = await dataUrlToFile(item.imageUrl, `restored-${item.id}.png`);
+                    return {
+                        ...item,
+                        imageFile: file
+                    } as HistoryState;
+                }));
+                restoredIndex = projectData.currentIndex ?? (restoredHistory.length - 1);
+            } else {
+                // Fallback: Restore legacy single-state format
+                const file = await dataUrlToFile(projectData.imageUrl, 'project.png');
+                const newState: HistoryState = {
+                    id: `hist-loaded-${Date.now()}`,
+                    imageUrl: projectData.imageUrl,
+                    imageFile: file,
+                    prompt: projectData.prompt || '',
+                    activeFilter: projectData.activeFilter || 'none',
+                    adjustments: projectData.adjustments || defaultAdjustments,
+                    action: 'Project Loaded'
+                };
+                restoredHistory = [newState];
+                restoredIndex = 0;
+            }
+
+            handleReset(true);
+
+            setHistory(restoredHistory);
+            setCurrentHistoryIndex(restoredIndex);
+            setPrompt(projectData.prompt || '');
+            setQuality(projectData.quality || 'Medium');
+            setActiveTool('ai-edit');
+            
+        } catch (e) {
+            console.error("Load failed", e);
+            alert("Failed to load project data.");
+        } finally {
+            setIsLoading(false);
+            setLoadingMessage("");
+        }
+    }, [currentHistoryState]);
+
     const drawWatermarkOnContext = (
         ctx: CanvasRenderingContext2D,
         bounds: { width: number; height: number; x?: number; y?: number },
@@ -1255,8 +1355,8 @@ export const ImageEditor: React.FC = () => {
                         <button onClick={resetZoomAndPan} className="p-2 rounded-md hover:bg-white/10"><ResetZoomIcon/></button>
                      </div>
                      <div className="flex items-center gap-2">
-                        <button onClick={() => {}} className="p-2 rounded-md hover:bg-white/10"><SaveIcon/></button>
-                        <button onClick={() => {}} className="p-2 rounded-md hover:bg-white/10"><LoadIcon/></button>
+                        <button onClick={handleSaveProject} className="p-2 rounded-md hover:bg-white/10" title="Save Project" aria-label="Save Project"><SaveIcon/></button>
+                        <button onClick={handleLoadProject} className="p-2 rounded-md hover:bg-white/10" title="Load Project" aria-label="Load Project"><LoadIcon/></button>
                      </div>
                 </div>
                 <div ref={imageContainerRef} className="relative w-full aspect-square bg-black/30 rounded-2xl overflow-hidden flex items-center justify-center">

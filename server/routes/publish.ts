@@ -1,12 +1,10 @@
 // server/routes/publish.ts
-// FIX: Changed import to default express and use explicit types to avoid global type conflicts.
 import express from 'express';
 
 export const router = express.Router();
 
 // POST /api/publish/youtube
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/youtube', (req: express.Request, res: express.Response) => {
+router.post('/youtube', (req, res) => {
     const { draftId, title, description } = req.body;
     console.log(`Received request to publish draft ${draftId} to YouTube with title: ${title}`);
     
@@ -19,8 +17,7 @@ router.post('/youtube', (req: express.Request, res: express.Response) => {
 });
 
 // POST /api/publish/cms
-// FIX: Used express.Request and express.Response for correct typing.
-router.post('/cms', (req: express.Request, res: express.Response) => {
+router.post('/cms', (req, res) => {
     const { draftId, content } = req.body;
     console.log(`Received request to publish draft ${draftId} to CMS.`);
     

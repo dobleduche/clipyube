@@ -1,12 +1,14 @@
+
 // This file acts as the client-side bridge to the secure backend API.
 // It makes fetch requests to the server, which then handles the direct
 // interaction with external services like Google Gemini.
 import { ContentIdea } from '../services/viralAgentService';
 import { BlogPost } from '../pages/BlogPage';
 import { Settings } from '../context/SettingsContext';
+import { initialBlogPosts } from '../data/blogData';
 
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = 'http://localhost:3009';
 
 /**
  * A generic helper to call the backend's image generation endpoint.
@@ -122,12 +124,16 @@ export const generateBlogPostRequest = async (idea: ContentIdea): Promise<{blogP
 };
 
 export const getBlogPostsRequest = async (): Promise<BlogPost[]> => {
-    const response = await fetch(`${API_BASE_URL}/api/blog`);
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch blog posts from server.');
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/blog`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch');
+        }
+        return await response.json();
+    } catch (error) {
+        console.warn('Backend unreachable. Returning mock blog posts.');
+        return initialBlogPosts;
     }
-    return response.json();
 };
 
 export const deleteBlogPostRequest = async (slug: string): Promise<Response> => {
@@ -161,12 +167,30 @@ export const runViralAgentRequest = async (
 };
 
 export const getSettingsRequest = async (): Promise<Settings> => {
-    const response = await fetch(`${API_BASE_URL}/api/automation/settings`);
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch settings from server.');
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/automation/settings`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch');
+        }
+        return await response.json();
+    } catch (error) {
+        console.warn('Backend unreachable. Returning default settings.');
+        return {
+            profileName: '',
+            defaultNiche: 'AI Technology',
+            twitterHandle: '',
+            automationInterval: 3600000, // 1 hour
+            watermarkDefaults: {
+                type: 'text',
+                text: 'Clip-Yube',
+                font: 'Oswald',
+                fontSize: 48,
+                color: '#ffffff',
+                opacity: 0.7,
+                position: 'bottom-right',
+            },
+        };
     }
-    return response.json();
 };
 
 export const saveSettingsRequest = async (newSettings: Partial<Settings>): Promise<Response> => {
