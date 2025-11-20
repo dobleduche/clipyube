@@ -1,3 +1,4 @@
+
 import express from 'express';
 import * as llm from '../adapters/llm';
 import * as analysisService from '../services/analysisService';
@@ -118,5 +119,34 @@ router.post('/search-images', async (req, res) => {
     console.error('Image search error:', error);
     res.status(500).json({ error: (error as Error).message });
   }
+});
 
+// POST /api/generate/youtube-description
+router.post('/youtube-description', async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required.' });
+    }
+
+    const prompt = `
+      Act as a professional YouTube creator. Write a compelling video description based on this blog post:
+      
+      Blog Title: "${title}"
+      Blog Content: "${content.substring(0, 3000)}" 
+      
+      Structure the description as follows:
+      1. An attention-grabbing first sentence (Hook).
+      2. A concise paragraph summarizing the video's value (What you'll learn).
+      3. Key takeaways (3-5 bullet points).
+      4. A strong Call to Action (Subscribe/Like/Comment).
+      5. 5-10 optimized hashtags.
+    `;
+
+    const description = await llm.generateTextContent(prompt);
+    res.json({ description });
+  } catch (error) {
+    console.error('YouTube description generation error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
 });

@@ -1,10 +1,11 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // Module-level cache for the client instance. It starts as null.
 let aiClientInstance: GoogleGenAI | null = null;
 
-const imageModel = 'gemini-1.5-flash';
-const proModel = 'gemini-2.5-pro';
+const imageModel = 'gemini-2.5-flash-image';
+const proModel = 'gemini-3-pro-preview';
 
 /**
  * Lazily initializes and returns a singleton instance of the GoogleGenAI client.

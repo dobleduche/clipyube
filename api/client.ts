@@ -228,3 +228,19 @@ export const generateTextRequest = (prompt: string): Promise<Response> => {
         body: JSON.stringify({ prompt }),
     });
 };
+
+export const generateYouTubeDescriptionRequest = async (title: string, content: string): Promise<string> => {
+    const response = await fetch(`${API_BASE_URL}/api/generate/youtube-description`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate YouTube description.');
+    }
+
+    const data = await response.json();
+    return data.description;
+};
