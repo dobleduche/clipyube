@@ -26,42 +26,56 @@ const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
         return `An unknown error occurred during ${operation}.`;
     }
 
-    const message = error.message; // Keep case for API key names
+    const message = error.message; 
     const lowerMessage = message.toLowerCase();
 
-    // Specific check for Runway API Key. The service throws an error with this exact variable name.
+    // Specific check for Runway API Key.
     if (message.includes('RUNWAY_API_KEY')) {
-        return `Runway API Key Error: The 'RUNWAY_API_KEY' is missing or invalid. Please configure it in your environment to enable video generation.`;
+        return `Configuration Error: The 'RUNWAY_API_KEY' is missing. Video generation is currently disabled.`;
     }
 
-    // Specific check for Gemini API Key from our backend proxy or Gemini itself.
-    if (message.includes('API_KEY') || lowerMessage.includes('api key not valid') || lowerMessage.includes('api_key_invalid') || lowerMessage.includes('requested entity was not found')) {
-        return `Gemini API Key Error: Your key seems to be invalid or missing. Please ensure the 'API_KEY' is configured correctly on the server for image editing features.`;
+    // API Key Errors (Gemini/General)
+    if (message.includes('API_KEY') || lowerMessage.includes('api key') || lowerMessage.includes('unauthorized') || lowerMessage.includes('401') || lowerMessage.includes('403')) {
+        return `Authentication Error: The AI service API key is invalid or missing. Please check your server configuration.`;
     }
 
-    if (lowerMessage.includes('safety policies') || lowerMessage.includes('prompt was blocked') || lowerMessage.includes('candidate was blocked')) {
-        return `Content Policy Violation: Your request for '${operation}' was blocked. Please try rephrasing your prompt to be more specific and avoid potentially sensitive topics.`;
+    // Safety & Content Policy
+    if (lowerMessage.includes('safety') || lowerMessage.includes('blocked') || lowerMessage.includes('policy') || lowerMessage.includes('filtered') || lowerMessage.includes('harmful')) {
+        return `Content Policy Violation: Your request was flagged by safety filters. Please try a different, less sensitive prompt.`;
     }
 
-    if (lowerMessage.includes('quota')) {
-        return `Quota Exceeded: You have exceeded your API usage limits. Please check your account status and billing information.`;
+    // Quota & Rate Limits
+    if (lowerMessage.includes('quota') || lowerMessage.includes('limit') || lowerMessage.includes('429')) {
+        return `Quota Exceeded: Usage limits reached. Please try again later or check your billing status.`;
     }
-    
+
+    // Billing
     if (lowerMessage.includes('billing')) {
-         return `Billing Error: There may be an issue with your billing account. Please ensure it's active and has a valid payment method.`;
+         return `Billing Error: There is an issue with the cloud account billing. Please verify payment details.`;
     }
 
-    if (lowerMessage.includes('network request failed') || lowerMessage.includes('fetch')) {
-        return `Network Error: Could not connect to the AI service. Please check your internet connection and try again.`;
+    // Network / Connection
+    if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('connection') || message === 'Failed to fetch') {
+        return `Connection Error: Could not reach the server. Please check your internet connection.`;
     }
     
-    // Default Gemini API error
+    // Server Side / Capacity
+    if (lowerMessage.includes('overloaded') || lowerMessage.includes('busy') || lowerMessage.includes('503') || lowerMessage.includes('500')) {
+        return `Server Busy: The AI models are currently experiencing high traffic or an internal error occurred. Please try again in a moment.`;
+    }
+
+    // Specific Gemini API Errors
     if (lowerMessage.includes('gemini api')) {
         const cleanerMessage = message.replace(/an error occurred during .*? with the gemini api:/i, '').trim();
-        return `AI Model Error during ${operation}: ${cleanerMessage}. Please try a different prompt or try again later.`;
+        return `AI Model Error: ${cleanerMessage || 'The model failed to process your request.'}`;
+    }
+    
+    // Resource Not Found
+    if (lowerMessage.includes('not found') || lowerMessage.includes('404')) {
+        return `Resource Not Found: The requested resource or endpoint could not be found during ${operation}.`;
     }
 
-    return `An unexpected error occurred during ${operation}: ${error.message}`;
+    return `Error during ${operation}: ${message}`;
 };
 
 
@@ -247,12 +261,12 @@ const HistoryPanel: React.FC<{
                 <motion.div
                     key={state.id}
                     data-index={index}
-                    className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors ${currentIndex === index ? 'bg-cyan-500/20' : 'hover:bg-white/10'}`}
+                    className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors group ${currentIndex === index ? 'bg-cyan-500/20' : 'hover:bg-white/10'}`}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2, delay: index * 0.05 }}
                 >
-                    <button onClick={() => onJump(index)} className="flex items-center gap-3 flex-grow text-left min-w-0 group">
+                    <button onClick={() => onJump(index)} className="flex items-center gap-3 flex-grow text-left min-w-0">
                         <div className="relative w-10 h-10 flex-shrink-0">
                              <img src={state.imageUrl} alt={state.action} className="w-full h-full object-cover rounded-md border border-white/10" />
                         </div>
@@ -864,7 +878,7 @@ export const ImageEditor: React.FC = () => {
 
     const handleSaveProject = useCallback(() => {
         if (!currentHistoryState) {
-            alert("No active project to save.");
+            setError("No active project to save.");
             return;
         }
         
@@ -892,14 +906,14 @@ export const ImageEditor: React.FC = () => {
             alert("Project saved to local storage!");
         } catch (e) {
             console.error("Save failed", e);
-            alert("Failed to save project. The image might be too large for your browser's storage.");
+            setError(getFriendlyErrorMessage(e, 'Saving Project'));
         }
     }, [currentHistoryState, history, currentHistoryIndex, prompt, quality, debouncedUpdateHistoryForAdjustments]);
 
     const handleLoadProject = useCallback(async () => {
         const savedJSON = localStorage.getItem(SAVED_PROJECT_KEY);
         if (!savedJSON) {
-            alert("No saved project found.");
+            setError("No saved project found.");
             return;
         }
 
@@ -951,7 +965,7 @@ export const ImageEditor: React.FC = () => {
             
         } catch (e) {
             console.error("Load failed", e);
-            alert("Failed to load project data.");
+            setError(getFriendlyErrorMessage(e, 'Loading Project'));
         } finally {
             setIsLoading(false);
             setLoadingMessage("");
@@ -1024,7 +1038,7 @@ export const ImageEditor: React.FC = () => {
             setPrompt(examplePrompt);
         } catch (error) {
             console.error("Failed to load example image:", error);
-            setError("Could not load the example image. Please check your network connection.");
+            setError(getFriendlyErrorMessage(error, 'Loading Example'));
         }
     };
 
