@@ -71,7 +71,7 @@
 >      * structured logging and basic error tracking.
 > 6. **Testing, linting, and CI**
 >
->    * Add **Vitest/Jest**:
+>    * Add either **Vitest** or **Jest** (choose one and add it to `package.json`):
 >
 >      * unit tests for source adapters, content generation orchestrator, and publishing service,
 >      * integration test for “topic in → content out → publish stub”.
