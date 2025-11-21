@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { getSettingsRequest, saveSettingsRequest } from '../api/client';
@@ -19,6 +20,16 @@ export interface Settings {
     twitterHandle: string;
     automationInterval: number; // in milliseconds
     watermarkDefaults: Partial<WatermarkSettings>;
+    // New Features
+    userTier: 'free' | 'pro';
+    billing: {
+        plan: string;
+        nextBillingDate: string;
+    };
+    newsletter: {
+        email: boolean;
+        inApp: boolean;
+    };
 }
 
 const defaultSettings: Settings = {
@@ -34,6 +45,15 @@ const defaultSettings: Settings = {
         color: '#ffffff',
         opacity: 0.7,
         position: 'bottom-right',
+    },
+    userTier: 'free', // Default to free to demonstrate locked features
+    billing: {
+        plan: 'Free Plan',
+        nextBillingDate: '',
+    },
+    newsletter: {
+        email: true,
+        inApp: true,
     },
 };
 
@@ -54,7 +74,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         const fetchSettings = async () => {
             try {
                 const serverSettings = await getSettingsRequest();
-                setSettings(serverSettings);
+                // Merge server settings with defaults to ensure new fields exist
+                setSettings(prev => ({ ...prev, ...serverSettings }));
             } catch (error) {
                 console.error("Failed to fetch settings from server:", error);
             } finally {
@@ -74,7 +95,15 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const updateSettings = useCallback((newSettings: Partial<Settings>) => {
         setSettings(prev => {
-            const updated = { ...prev, ...newSettings };
+            // Deep merge logic for nested objects would be ideal, but simple spread works for now
+            // provided we handle nested updates in the update call (e.g. newsletter object)
+            let updated = { ...prev, ...newSettings };
+            
+            // Handle specific nested updates if passed partially
+            if (newSettings.newsletter) {
+                updated.newsletter = { ...prev.newsletter, ...newSettings.newsletter };
+            }
+            
             debouncedSaveSettings(updated);
             return updated;
         });

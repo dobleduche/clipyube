@@ -1,3 +1,4 @@
+
 // server/db/index.ts
 // Simple in-memory database for demonstration purposes.
 
@@ -19,6 +20,15 @@ const defaultSettings: Settings = {
         color: '#ffffff',
         opacity: 0.7,
         position: 'bottom-right',
+    },
+    userTier: 'free',
+    billing: {
+        plan: 'Free Plan',
+        nextBillingDate: '',
+    },
+    newsletter: {
+        email: true,
+        inApp: true,
     },
 };
 

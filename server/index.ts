@@ -1,4 +1,3 @@
-
 import "dotenv/config"; // Load environment variables before other imports
 import express, { Request, Response as ExpressResponse, NextFunction } from "express";
 import cors from "cors";
@@ -66,7 +65,7 @@ const errorHandler = (err: any, _req: Request, res: ExpressResponse, _next: Next
   const status = Number(err.status) || 500;
   const message = err.message || "Internal Server Error";
   console.error("[Server] Error:", { status, message, stack: err.stack });
-  res.status(status).json({ ok: false, error: message });
+  (res as any).status(status).json({ ok: false, error: message });
 };
 app.use(errorHandler);
 
