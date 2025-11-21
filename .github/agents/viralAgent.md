@@ -84,7 +84,7 @@
 > 7. **Deployment readiness**
 >
 >    * Add a production **Dockerfile** (multi-stage: build + runtime).
->    * Add a basic deployment template for Render/Vercel/Fly.io with:
+>    * Add a basic deployment template for **Render** (or Vercel/Fly.io as alternatives) with:
 >
 >      * required env vars,
 >      * health checks (e.g., `/api/health` reporting DB/Redis/queue status).
