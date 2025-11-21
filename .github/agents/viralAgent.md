@@ -100,7 +100,7 @@
 >
 > Deliverables:
 >
-> * Commits/PR that implement the above.
+> * Commits/PRs that implement the above.
 > * PR description with:
 >
 >   * architecture summary,
