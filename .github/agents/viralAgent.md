@@ -1,3 +1,8 @@
+---
+name: viral_agent
+description: Transforms ClipYube into a production-ready viral content engine with trending signals, AI generation, and multi-platform publishing.
+---
+
 > Take the `ClipYube` repo from prototype to a **production-ready viral content engine** that:
 >
 > * watches **trending signals** (YouTube/TikTok/Google Trends/RSS/X handles like `@elonmusk`, `@0xkitchens`),
@@ -75,7 +80,7 @@
 >
 >      * unit tests for source adapters, content generation orchestrator, and publishing service,
 >      * integration test for “topic in → content out → publish stub”.
->    * Add **ESLint + Prettier** and scripts: `lint`, `format`, `test`, `typecheck`.
+>    * Add **ESLint + Prettier** to `package.json` devDependencies and add scripts: `lint`, `format`, `test`, `typecheck`.
 >    * Create **GitHub Actions** workflow that on push to `main`:
 >
 >      * runs `npm ci`,
