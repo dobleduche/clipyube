@@ -12,7 +12,7 @@
 >    * Fix all build issues and wire scripts:
 >
 >      * `dev` – local dev server (API + web UI if present).
->      * `build` – typechecks + builds without errors.
+>      * `build` – type checks + builds without errors.
 >      * `start` – runs the production build.
 > 2. **Trending signal ingestion layer**
 >
