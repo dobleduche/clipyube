@@ -1,3 +1,8 @@
+---
+name: viral_agent
+description: Transforms ClipYube into a production-ready viral content engine with trend monitoring, AI content generation, and multi-platform publishing.
+---
+
 > Take the `ClipYube` repo from prototype to a **production-ready viral content engine** that:
 >
 > * watches **trending signals** (YouTube/TikTok/Google Trends/RSS/X handles like `@elonmusk`, `@0xkitchens`),
