@@ -6,7 +6,7 @@ generates derivative content (titles, scripts, blog posts, social captions),
 
 and publishes to the ClipYube platform + social channels on a schedule or trigger.
 
-Clarify architecture & stabilize build
+## Clarify architecture & stabilize build
 
 Inspect package.json, server/**, src/**, tsconfig*.json, and any frontend.
 
@@ -18,7 +18,7 @@ build – typechecks + builds without errors.
 
 start – runs the production build.
 
-Trending signal ingestion layer
+## Trending signal ingestion layer
 
 Implement a pluggable “source” interface for:
 
@@ -60,7 +60,7 @@ Use existing AI providers (OpenAI, Gemini, etc.) via well-abstracted service mod
 
 Persist all generated artifacts in a contents table with clear status fields: draft, readyToPublish, published, failed.
 
-Publishing & workflow control
+## Publishing & workflow control
 
 Implement a Publishing Service with providers:
 
@@ -120,7 +120,7 @@ lint, test, typecheck, build,
 
 fails on any error.
 
-Deployment readiness
+## Deployment readiness
 
 Add a production Dockerfile (multi-stage: build + runtime).
 
@@ -130,7 +130,7 @@ required env vars,
 
 health checks (e.g., /api/health reporting DB/Redis/queue status).
 
-Documentation
+## Documentation
 
 Update README.md to cover:
 
@@ -144,7 +144,7 @@ how to configure sources, topics, and auto-publish rules,
 
 how to deploy using the Docker image + CI workflow.
 
-Deliverables:
+## Deliverables:
 
 Commits/PR that implement the above.
 
