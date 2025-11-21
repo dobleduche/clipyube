@@ -86,7 +86,7 @@ pause/resume auto-publish,
 
 re-trigger a workflow for a topic.
 
-Environment, security, and resilience
+## Environment, security, and resilience
 
 Move all secrets (API keys, Redis URLs, DB credentials, OAuth tokens) into process.env.
 
