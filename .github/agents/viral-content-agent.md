@@ -102,7 +102,7 @@ security headers middleware,
 
 structured logging and basic error tracking.
 
-Testing, linting, and CI
+## Testing, linting, and CI
 
 Add Vitest/Jest:
 
