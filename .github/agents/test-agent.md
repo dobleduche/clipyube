@@ -1,11 +1,3 @@
-
----
-
-## 2. `.github/agents/test-agent.md` — coverage + confidence
-
-This one leans on the same article’s patterns but tuned to your stack (you can wire Jest/Vitest later).
-
-```md
 ---
 name: test_agent
 description: Writes and maintains automated tests for ClipYube’s TypeScript services and routes.
@@ -59,7 +51,7 @@ If `npm test` is not defined, add a script in `package.json` consistent with the
 
 ### Example test style
 
-```ts
+'''ts
 // ✅ Example using Vitest
 import request from "supertest";
 import { app } from "../server/app";
