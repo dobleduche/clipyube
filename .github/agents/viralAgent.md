@@ -1,4 +1,9 @@
-> Take the `clipyube` repo from prototype to a **production-ready viral content engine** that:
+---
+name: viral_agent
+description: Architectural planning and deployment documentation to guide transformation of ClipYube into a production-ready viral content engine.
+---
+
+> Take the `ClipYube` repo from prototype to a **production-ready viral content engine** that:
 >
 > * watches **trending signals** (YouTube/TikTok/Google Trends/RSS/X handles like `@elonmusk`, `@0xkitchens`),
 >
@@ -24,7 +29,7 @@
 >    * Add a scheduler (BullMQ + Redis or cron) to:
 >
 >      * poll sources on an interval,
->      * normalise results into a `trending_topics` table/collection (`id`, `source`, `keyword`, `metadata`, `score`, `firstSeenAt`, `lastSeenAt`).
+>      * normalize results into a `trending_topics` table/collection (`id`, `source`, `keyword`, `metadata`, `score`, `firstSeenAt`, `lastSeenAt`).
 >    * Expose admin API endpoints + minimal UI to:
 >
 >      * view active topics,
@@ -75,7 +80,7 @@
 >
 >      * unit tests for source adapters, content generation orchestrator, and publishing service,
 >      * integration test for “topic in → content out → publish stub”.
->    * Add **ESLint + Prettier** and scripts: `lint`, `format`, `test`, `typecheck`.
+>    * Add **ESLint + Prettier** to `package.json` devDependencies first, then configure and add scripts: `lint`, `format`, `test`, `typecheck`.
 >    * Create **GitHub Actions** workflow that on push to `main`:
 >
 >      * runs `npm ci`,
