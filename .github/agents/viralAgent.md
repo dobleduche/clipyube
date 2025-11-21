@@ -24,7 +24,7 @@
 >    * Add a scheduler (BullMQ + Redis or cron) to:
 >
 >      * poll sources on an interval,
->      * normalise results into a `trending_topics` table/collection (`id`, `source`, `keyword`, `metadata`, `score`, `firstSeenAt`, `lastSeenAt`).
+>      * normalize results into a `trending_topics` table/collection (`id`, `source`, `keyword`, `metadata`, `score`, `firstSeenAt`, `lastSeenAt`).
 >    * Expose admin API endpoints + minimal UI to:
 >
 >      * view active topics,
