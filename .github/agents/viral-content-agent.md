@@ -42,7 +42,7 @@ whitelist/blacklist topics,
 
 configure keywords/handles to monitor.
 
-Content generation pipeline
+## Content generation pipeline
 
 Implement a queue-based pipeline:
 
