@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -19,11 +20,12 @@ import { useAppContext } from './context/AppContext';
 import { useSettings } from './context/SettingsContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import CookieConsentBanner from './components/CookieConsentBanner';
+import UpgradeModal from './components/UpgradeModal';
 
 const MotionDiv = motion.div;
 
 const App: React.FC = () => {
-  const { route, blogPosts } = useAppContext();
+  const { route, blogPosts, isUpgradeModalOpen, closeUpgradeModal } = useAppContext();
   const { settings } = useSettings();
   
   const isLandingPage = route === '/' || route === '#/';
@@ -110,6 +112,7 @@ const App: React.FC = () => {
       </main>
       <Footer />
       <CookieConsentBanner />
+      <UpgradeModal isOpen={isUpgradeModalOpen} onClose={closeUpgradeModal} />
     </div>
   );
 };

@@ -23,30 +23,30 @@ type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'deviceprevi
 
 const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
     if (!(error instanceof Error)) {
-        return `An unknown error occurred during ${operation}.`;
+        return `An unexpected issue occurred during ${operation}. Please try again.`;
     }
 
-    const message = error.message; 
+    const message = error.message;
     const lowerMessage = message.toLowerCase();
 
-    // Specific check for Runway API Key.
+    // Configuration specific
     if (message.includes('RUNWAY_API_KEY')) {
-        return `Configuration Error: The 'RUNWAY_API_KEY' is missing. Video generation is currently disabled.`;
+        return `Configuration Missing: The Runway API key is not set on the server. Video generation is unavailable.`;
     }
 
-    // API Key Errors (Gemini/General)
+    // Authentication & API Key
     if (message.includes('API_KEY') || lowerMessage.includes('api key') || lowerMessage.includes('unauthorized') || lowerMessage.includes('401') || lowerMessage.includes('403')) {
-        return `Authentication Error: The AI service API key is invalid or missing. Please check your server configuration.`;
+        return `Authentication Failed: The AI service rejected the API key. Please verify your server configuration.`;
     }
 
-    // Safety & Content Policy
-    if (lowerMessage.includes('safety') || lowerMessage.includes('blocked') || lowerMessage.includes('policy') || lowerMessage.includes('filtered') || lowerMessage.includes('harmful')) {
-        return `Content Policy Violation: Your request was flagged by safety filters. Please try a different, less sensitive prompt.`;
+    // Content Safety (Gemini/Runway)
+    if (lowerMessage.includes('safety') || lowerMessage.includes('blocked') || lowerMessage.includes('policy') || lowerMessage.includes('harmful') || lowerMessage.includes('sexually') || lowerMessage.includes('hate') || lowerMessage.includes('filtered')) {
+        return `Content Policy Violation: The AI model flagged your prompt as potentially unsafe. Please try a different, less sensitive prompt.`;
     }
 
     // Quota & Rate Limits
-    if (lowerMessage.includes('quota') || lowerMessage.includes('limit') || lowerMessage.includes('429')) {
-        return `Quota Exceeded: Usage limits reached. Please try again later or check your billing status.`;
+    if (lowerMessage.includes('quota') || lowerMessage.includes('limit') || lowerMessage.includes('429') || lowerMessage.includes('exhausted')) {
+        return `Usage Limit Reached: You have hit the rate limit for the AI service. Please try again in a few minutes.`;
     }
 
     // Billing
@@ -54,27 +54,22 @@ const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
          return `Billing Error: There is an issue with the cloud account billing. Please verify payment details.`;
     }
 
-    // Network / Connection
-    if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('connection') || message === 'Failed to fetch') {
-        return `Connection Error: Could not reach the server. Please check your internet connection.`;
-    }
-    
     // Server Side / Capacity
-    if (lowerMessage.includes('overloaded') || lowerMessage.includes('busy') || lowerMessage.includes('503') || lowerMessage.includes('500')) {
-        return `Server Busy: The AI models are currently experiencing high traffic or an internal error occurred. Please try again in a moment.`;
+    if (lowerMessage.includes('overloaded') || lowerMessage.includes('busy') || lowerMessage.includes('503') || lowerMessage.includes('500') || lowerMessage.includes('internal server error')) {
+        return `System Busy: The AI models are currently experiencing high traffic. Please wait a moment and try again.`;
     }
 
-    // Specific Gemini API Errors
-    if (lowerMessage.includes('gemini api')) {
-        const cleanerMessage = message.replace(/an error occurred during .*? with the gemini api:/i, '').trim();
-        return `AI Model Error: ${cleanerMessage || 'The model failed to process your request.'}`;
+    // Network / Connectivity
+    if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('connection') || message === 'Failed to fetch') {
+        return `Connection Error: Could not reach the server. Please check your internet connection and ensure the backend is running.`;
     }
     
     // Resource Not Found
     if (lowerMessage.includes('not found') || lowerMessage.includes('404')) {
-        return `Resource Not Found: The requested resource or endpoint could not be found during ${operation}.`;
+        return `Resource Not Found: The requested resource could not be found during ${operation}.`;
     }
 
+    // Fallback
     return `Error during ${operation}: ${message}`;
 };
 
@@ -90,7 +85,7 @@ const filters = [
 ];
 
 const presets = [
-    { name: 'Odinary Neon', value: 'contrast(1.2) saturate(1.8) brightness(1.1) hue-rotate(-15deg)', type: 'css' },
+    { name: 'Ordinary Neon', value: 'contrast(1.2) saturate(1.8) brightness(1.1) hue-rotate(-15deg)', type: 'css' },
     { name: 'Bear-Market Red', value: 'sepia(0.4) contrast(1.1) brightness(0.9) hue-rotate(-20deg) saturate(1.3)', type: 'css' },
     { name: 'Solana Cyan', value: 'saturate(1.6) contrast(1.1) brightness(1.05) hue-rotate(180deg) sepia(0.2)', type: 'css' },
     { name: 'Vintage Poster', value: 'sepia(0.6) saturate(1.4) contrast(0.9) brightness(1.1)', type: 'css' },

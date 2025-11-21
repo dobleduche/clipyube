@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { TwitterIcon, GithubIcon } from './Icons';
+import { TwitterIcon, GithubIcon, GiftIcon } from './Icons';
 import { useAppContext } from '../context/AppContext';
 
 const Footer: React.FC = () => {
@@ -34,6 +34,11 @@ const Footer: React.FC = () => {
                             <ul className="mt-4 space-y-2">
                                 <li><a href="#/blog" onClick={(e) => handleNavClick(e, '#/blog')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">Blog</a></li>
                                 <li><a href="#/docs-faq" onClick={(e) => handleNavClick(e, '#/docs-faq')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">Docs & FAQ</a></li>
+                                <li>
+                                    <button className="flex items-center gap-2 text-base text-amber-400 hover:text-amber-300 transition-colors mx-auto md:mx-0">
+                                        <GiftIcon className="w-4 h-4"/> Referrals
+                                    </button>
+                                </li>
                                 <li><a href="#/about" onClick={(e) => handleNavClick(e, '#/about')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">About</a></li>
                                 <li><a href="#/contact" onClick={(e) => handleNavClick(e, '#/contact')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">Contact</a></li>
                                 <li><a href="#/smoke-test" onClick={(e) => handleNavClick(e, '#/smoke-test')} className="text-base text-slate-400 hover:text-cyan-400 transition-colors">System Health</a></li>

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { BlogPost } from '../pages/BlogPage';
 import { ContentIdea } from '../services/viralAgentService';
@@ -12,11 +13,14 @@ interface AppContextType {
   route: string;
   blogPosts: BlogPost[];
   automation: AutomationCommand;
+  isUpgradeModalOpen: boolean;
   navigateTo: (newRoute: string) => void;
   generateBlogPost: (idea: ContentIdea) => Promise<string>;
   generateVideoFromIdea: (idea: ContentIdea) => void;
   clearAutomation: () => void;
   deleteBlogPost: (slug: string) => void;
+  openUpgradeModal: () => void;
+  closeUpgradeModal: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -25,6 +29,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [route, setRoute] = useState(window.location.hash || '/');
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [automation, setAutomation] = useState<AutomationCommand>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   
   useEffect(() => {
     const handleHashChange = () => {
@@ -89,16 +94,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const clearAutomation = () => {
     setAutomation(null);
   };
+
+  const openUpgradeModal = () => setIsUpgradeModalOpen(true);
+  const closeUpgradeModal = () => setIsUpgradeModalOpen(false);
   
   const value = {
     route,
     blogPosts,
     automation,
+    isUpgradeModalOpen,
     navigateTo,
     generateBlogPost,
     generateVideoFromIdea,
     clearAutomation,
     deleteBlogPost,
+    openUpgradeModal,
+    closeUpgradeModal,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

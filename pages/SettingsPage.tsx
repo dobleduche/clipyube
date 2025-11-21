@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useSettings } from '../context/SettingsContext';
 import Loader from '../components/Loader';
@@ -17,6 +18,16 @@ const SettingsPage: React.FC = () => {
             watermarkDefaults: {
                 ...settings.watermarkDefaults,
                 [name]: isNumeric ? parseFloat(value) : value,
+            }
+        });
+    };
+    
+    const handleNewsletterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, checked } = e.target;
+        updateSettings({
+            newsletter: {
+                ...settings.newsletter,
+                [name]: checked,
             }
         });
     };
@@ -71,6 +82,42 @@ const SettingsPage: React.FC = () => {
                                     className="w-full p-2 pl-7 bg-slate-800/50 border border-slate-700 rounded-lg"
                                     placeholder="yourhandle"
                                 />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Newsletter / Notifications (New) */}
+                <div className="bg-slate-900/40 backdrop-blur-lg border border-white/10 p-6 rounded-2xl shadow-lg">
+                    <h3 className="text-2xl font-bold text-white mb-4 font-oswald">Notifications</h3>
+                    <p className="text-sm text-slate-400 mb-4">Manage how you receive updates about new features, viral trends, and your account.</p>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label htmlFor="email-newsletter" className="text-slate-200">Newsletter (Email)</label>
+                            <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input 
+                                    type="checkbox" 
+                                    name="email" 
+                                    id="email-newsletter" 
+                                    checked={settings.newsletter.email} 
+                                    onChange={handleNewsletterChange}
+                                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 checked:border-cyan-500 right-6 border-slate-500"
+                                />
+                                <label htmlFor="email-newsletter" className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${settings.newsletter.email ? 'bg-cyan-500' : 'bg-slate-700'}`}></label>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <label htmlFor="in-app-updates" className="text-slate-200">In-App Updates</label>
+                            <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input 
+                                    type="checkbox" 
+                                    name="inApp" 
+                                    id="in-app-updates" 
+                                    checked={settings.newsletter.inApp} 
+                                    onChange={handleNewsletterChange}
+                                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer checked:right-0 checked:border-cyan-500 right-6 border-slate-500"
+                                />
+                                <label htmlFor="in-app-updates" className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${settings.newsletter.inApp ? 'bg-cyan-500' : 'bg-slate-700'}`}></label>
                             </div>
                         </div>
                     </div>
