@@ -120,7 +120,7 @@ lint, test, typecheck, build,
 
 fails on any error.
 
-Deployment readiness
+## Deployment readiness
 
 Add a production Dockerfile (multi-stage: build + runtime).
 
@@ -130,7 +130,7 @@ required env vars,
 
 health checks (e.g., /api/health reporting DB/Redis/queue status).
 
-Documentation
+## Documentation
 
 Update README.md to cover:
 
