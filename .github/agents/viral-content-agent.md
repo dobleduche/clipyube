@@ -144,7 +144,7 @@ how to configure sources, topics, and auto-publish rules,
 
 how to deploy using the Docker image + CI workflow.
 
-Deliverables:
+## Deliverables
 
 Commits/PR that implement the above.
 
