@@ -48,13 +48,13 @@
 
   - Input: trending_topic + configuration (content type mix, language, max length).
 
-Steps:
+### Steps:
 
-generate YouTube title + description + tags,
+- generate YouTube title + description + tags,
 
-generate blog outline + blog post,
+- generate blog outline + blog post,
 
-generate social captions (X, TikTok description, IG/FB text).
+- generate social captions (X, TikTok description, IG/FB text).
 
 Use existing AI providers (OpenAI, Gemini, etc.) via well-abstracted service modules.
 
@@ -62,29 +62,31 @@ Persist all generated artifacts in a contents table with clear status fields: dr
 
 ## Publishing & workflow control
 
+### Publishing Service
+
 Implement a Publishing Service with providers:
 
-ClipYube platform (internal DB / API).
+- ClipYube platform (internal DB / API).
 
-YouTube (official Data API for video metadata; assume upload token exists).
+- YouTube (official Data API for video metadata; assume upload token exists).
 
-Social platforms where APIs allow posting; for others, generate assets + export links for manual posting.
+- Social platforms where APIs allow posting; for others, generate assets + export links for manual posting.
 
 Wire configuration for:
 
-auto-publish vs. manual approval,
+- auto-publish vs. manual approval,
 
-per-platform cadence (e.g., X every 2 hours, blog 1/day),
+- per-platform cadence (e.g., X every 2 hours, blog 1/day),
 
-topic filters per channel (e.g., only Elon-related topics to specific feeds).
+- topic filters per channel (e.g., only Elon-related topics to specific feeds).
 
 Expose dashboard/API to:
 
-see queued/published items,
+- see queued/published items,
 
-pause/resume auto-publish,
+- pause/resume auto-publish,
 
-re-trigger a workflow for a topic.
+- re-trigger a workflow for a topic.
 
 ## Environment, security, and resilience
 
@@ -94,31 +96,39 @@ Create .env.example with clear documentation.
 
 Add:
 
-CORS with configurable allowed origins,
+- CORS with configurable allowed origins,
 
-rate-limiting on public APIs,
+- rate-limiting on public APIs,
 
-security headers middleware,
+- security headers middleware,
 
-structured logging and basic error tracking.
+- structured logging and basic error tracking.
 
 ## Testing, linting, and CI
 
 Add Vitest/Jest:
 
-unit tests for source adapters, content generation orchestrator, and publishing service,
+- unit tests for source adapters, content generation orchestrator, and publishing service,
 
-integration test for “topic in → content out → publish stub”.
+- integration test for "topic in → content out → publish stub".
 
-Add ESLint + Prettier and scripts: lint, format, test, typecheck.
+Add ESLint + Prettier and scripts:
+
+- lint,
+
+- format,
+
+- test,
+
+- typecheck.
 
 Create GitHub Actions workflow that on push to main:
 
-runs npm ci,
+- runs npm ci,
 
-lint, test, typecheck, build,
+- lint, test, typecheck, build,
 
-fails on any error.
+- fails on any error.
 
 ## Deployment readiness
 
@@ -126,23 +136,23 @@ Add a production Dockerfile (multi-stage: build + runtime).
 
 Add a basic deployment template for Render/Vercel/Fly.io with:
 
-required env vars,
+- required env vars,
 
-health checks (e.g., /api/health reporting DB/Redis/queue status).
+- health checks (e.g., /api/health reporting DB/Redis/queue status).
 
 ## Documentation
 
 Update README.md to cover:
 
-system overview (trend ingestion → AI generation → publishing),
+- system overview (trend ingestion → AI generation → publishing),
 
-setup (env vars, Redis/DB requirements),
+- setup (env vars, Redis/DB requirements),
 
-how to run dev, test, and prod,
+- how to run dev, test, and prod,
 
-how to configure sources, topics, and auto-publish rules,
+- how to configure sources, topics, and auto-publish rules,
 
-how to deploy using the Docker image + CI workflow.
+- how to deploy using the Docker image + CI workflow.
 
 ## Deliverables
 
@@ -150,10 +160,10 @@ Commits/PR that implement the above.
 
 PR description with:
 
-architecture summary,
+- architecture summary,
 
-how to spin up the full pipeline locally,
+- how to spin up the full pipeline locally,
 
-how to run the CI checks,
+- how to run the CI checks,
 
-any remaining edge cases to address before public beta.
+- any remaining edge cases to address before public beta.
