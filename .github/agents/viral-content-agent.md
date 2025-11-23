@@ -50,11 +50,11 @@
 
 Steps:
 
-generate YouTube title + description + tags,
+- generate YouTube title + description + tags,
 
-generate blog outline + blog post,
+- generate blog outline + blog post,
 
-generate social captions (X, TikTok description, IG/FB text).
+- generate social captions (X, TikTok description, IG/FB text).
 
 Use existing AI providers (OpenAI, Gemini, etc.) via well-abstracted service modules.
 
