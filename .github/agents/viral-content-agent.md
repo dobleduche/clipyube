@@ -6,7 +6,7 @@ generates derivative content (titles, scripts, blog posts, social captions),
 
 and publishes to the ClipYube platform + social channels on a schedule or trigger.
 
-Clarify architecture & stabilize build
+## Clarify architecture & stabilize build
 
 Inspect package.json, server/**, src/**, tsconfig*.json, and any frontend.
 
