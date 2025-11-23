@@ -146,14 +146,10 @@ how to deploy using the Docker image + CI workflow.
 
 ## Deliverables
 
-Commits/PR that implement the above.
+- Commits/PR that implement the above.
 
-PR description with:
-
-architecture summary,
-
-how to spin up the full pipeline locally,
-
-how to run the CI checks,
-
-any remaining edge cases to address before public beta.
+- PR description with:
+    - architecture summary,
+    - how to spin up the full pipeline locally,
+    - how to run the CI checks,
+    - any remaining edge cases to address before public beta.
