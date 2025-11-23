@@ -1,147 +1,101 @@
 // server/workers/captionWorker.ts
 import { Worker } from "bullmq";
-import { captionQueue, redisConnection } from "../queues";
+import { redisConnection as connection, captionQueue } from '../queues';
 import OpenAI from "openai";
+// FIX: Import createWriteStream and createReadStream from `fs`, not `fs/promises`.
 import { createReadStream, createWriteStream } from "node:fs";
-import fs from "node:fs/promises";
+import fs from "node:fs/promises"; // Use promises API
 import path from "node:path";
 import os from "node:os";
 import http from "node:http";
 import https from "node:https";
 
-interface CaptionJob {
+let ai: OpenAI | null = null;
+
+// Lazy-initialization of the OpenAI client for this worker.
+const getOpenAiClient = (): OpenAI => {
+  if (ai) return ai; // Return cached client
+
+  if (process.env.OPENAI_API_KEY) {
+    ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return ai;
+  }
+
+  throw new Error("OpenAI API client is not initialized for the caption worker. Please ensure OPENAI_API_KEY is set.");
+};
+
+interface JobData {
   tenant: string;
   id: string;
-  src: string; // can be a remote URL or a local file path
+  src: string;
 }
 
-let client: OpenAI | null = null;
+function log(tenant: string, type: "info" | "success" | "error", message: string) {
+  console.log(`[CAPTION_WORKER:${tenant}] [${new Date().toISOString()}] [${type}] ${message}`);
+}
 
-const getClient = () => {
-  if (client) return client;
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is missing — caption worker cannot run.");
+console.log(`[${new Date().toISOString()}] Starting Caption Worker...`);
+
+new Worker<JobData, void, string>(captionQueue.name, async (job) => {
+  const { tenant, id, src } = job.data;
+  log(tenant, "info", `Captioning start for job ${job.id}`);
+
+  const tempFilePath = path.join(os.tmpdir(), `caption-video-${id}.tmp`);
+
+  // Initialize OpenAI client and validate before processing
+  let client: OpenAI;
+  try {
+    client = getOpenAiClient();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Configuration error";
+    log(tenant, "error", `Captioning failed: ${message}`);
+    throw e; // Fail the job immediately
   }
-  client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return client;
-};
 
-// Send logs both to console and to Redis stream for SSE
-const log = (
-  tenant: string,
-  type: "info" | "success" | "error",
-  msg: string
-) => {
-  const line = `[CAPTION_WORKER:${tenant}] [${new Date().toISOString()}] [${type}] ${msg}`;
-  console.log(line);
+  // Download file
+  await fs.mkdir(os.tmpdir(), { recursive: true }); // Ensure temp dir exists
+  const fileStream = createWriteStream(tempFilePath);
+  const protocol = src.startsWith('https') ? https : http;
 
-  // Fire-and-forget; don't block worker on logging
-  void redisConnection
-    .xadd(`logs:${tenant}`, "*", "type", type, "message", msg)
-    .catch((err) => {
-      console.error("[CAPTION_WORKER] Failed to write log to Redis:", err);
+  try {
+    const response = await new Promise<http.IncomingMessage>((resolve, reject) => {
+      protocol.get(src, (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`Failed to download file: Status Code ${res.statusCode}`));
+        } else {
+          resolve(res);
+        }
+      }).on('error', reject);
     });
-};
 
-console.log(`[${new Date().toISOString()}] Caption Worker Online…`);
+    await new Promise<void>((resolve, reject) => {
+      response.pipe(fileStream);
+      fileStream.on('finish', () => resolve());
+      fileStream.on('error', (err) => reject(err));
+    });
 
-export const captionWorker = new Worker<CaptionJob>(
-  captionQueue.name,
-  async (job) => {
-    const { tenant, id, src } = job.data;
-
-    log(tenant, "info", `Beginning caption task → job ${job.id}`);
-    // 🔑 This is what your UI listens for to mark Caption as "running"
-    log(tenant, "info", "captioning start");
-
-    const tempFile = path.join(os.tmpdir(), `caption-${id}.mp4`);
-    let openai: OpenAI;
-
+    // Transcribe
+    // FIX: Use a ReadStream for the file, which satisfies the `Uploadable` type.
+    const transcription = await client.audio.transcriptions.create({
+      file: createReadStream(tempFilePath),
+      model: "whisper-1",
+    });
+    const transcript = transcription.text || "[No transcript found]";
+    log(tenant, "success", `Transcript for job ${job.id}: ${transcript.slice(0, 80)}…`);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error during transcription";
+    log(tenant, "error", `Captioning failed for job ${job.id}: ${message}`);
+    throw e;
+  } finally {
     try {
-      openai = getClient();
-    } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log(tenant, "error", msg);
-      throw err;
+      await fs.unlink(tempFilePath).catch(() => {}); // Silent fail on cleanup
+    } catch (e) {
+      log(tenant, "error", `Failed to clean up temp file ${tempFilePath}: ${e instanceof Error ? e.message : e}`);
     }
-
-    await fs.mkdir(os.tmpdir(), { recursive: true });
-
-    // Decide whether we need to download or just use local path
-    let localPath = src;
-
-    if (src.startsWith("http://") || src.startsWith("https://")) {
-      // Remote URL → download to tmp
-      const fileStream = createWriteStream(tempFile);
-      const proto = src.startsWith("https") ? https : http;
-
-      try {
-        const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
-          proto
-            .get(src, (response) => {
-              if (response.statusCode !== 200) {
-                response.resume();
-                reject(
-                  new Error(
-                    `Download failed: HTTP ${response.statusCode} for ${src}`
-                  )
-                );
-              } else {
-                resolve(response);
-              }
-            })
-            .on("error", reject);
-        });
-
-        await new Promise<void>((resolve, reject) => {
-          res.pipe(fileStream);
-          fileStream.on("finish", resolve);
-          fileStream.on("error", reject);
-        });
-
-        localPath = tempFile;
-      } catch (err: any) {
-        const msg = err instanceof Error ? err.message : String(err);
-        log(
-          tenant,
-          "error",
-          `Caption job ${job.id} failed during download → ${msg}`
-        );
-        throw err;
-      }
-    }
-
-    try {
-      const transcription = await openai.audio.transcriptions.create({
-        file: createReadStream(localPath),
-        model: "whisper-1",
-      });
-
-      const text = transcription.text || "";
-      log(
-        tenant,
-        "success",
-        `Transcription OK for job ${job.id}: ${text.slice(0, 100)}…`
-      );
-
-      // 🔑 This exact prefix is what your UI uses to mark Caption as "done"
-      log(tenant, "info", `transcript: ${text}`);
-
-      // TODO: enqueue HookFinder or save transcript to DB if needed
-      return { transcript: text };
-    } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log(tenant, "error", `Caption job ${job.id} failed → ${msg}`);
-      throw err;
-    } finally {
-      // Cleanup only the temp file we created, not arbitrary local src
-      if (localPath === tempFile) {
-        await fs.unlink(tempFile).catch(() => {});
-      }
-    }
-  },
-  {
-    connection: redisConnection,
-    concurrency: 2,
   }
-);
+}, {
+  connection,
+  concurrency: 2,
+  // Retry logic is handled by defaultJobOptions on the queue.
+});

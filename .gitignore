@@ -22,15 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-<<<<<<< HEAD
-node_modules/
-.env
-.next/
-dist/
-node_modules/
-.env
-.next/
-dist/
-=======
->>>>>>> df5ec207856d6c173980d2cf9489250f9cea53b4
-.env
