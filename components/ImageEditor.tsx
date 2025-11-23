@@ -1,9 +1,10 @@
+
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { editImageWithPrompt, upscaleImage, removeImageBackground, applyStyleTransfer, searchImages } from '../services/geminiService';
 import { generateVideoWithRunway } from '../services/runwayService';
 import { fileToBase64, dataUrlToFile } from '../utils/fileUtils';
 import Loader from './Loader';
-import { UploadIcon, MagicWandIcon, TrashIcon, DownloadIcon, CropIcon, PlusIcon, MinusIcon, UndoIcon, RedoIcon, FilterIcon, UpscaleIcon, AdjustmentsIcon, BackgroundEraserIcon, ColorSplashIcon, StyleTransferIcon, SaveIcon, LoadIcon, DevicePreviewIcon, VideoIcon, WatermarkIcon, XIcon, BrushIcon, ResetZoomIcon, ArrowLeftIcon, ArrowRightIcon, SearchIcon } from './Icons';
+import { UploadIcon, MagicWandIcon, TrashIcon, DownloadIcon, CropIcon, PlusIcon, MinusIcon, UndoIcon, RedoIcon, FilterIcon, UpscaleIcon, AdjustmentsIcon, BackgroundEraserIcon, ColorSplashIcon, StyleTransferIcon, SaveIcon, LoadIcon, DevicePreviewIcon, VideoIcon, WatermarkIcon, XIcon, BrushIcon, ResetZoomIcon, ArrowLeftIcon, ArrowRightIcon, SearchIcon, HistoryIcon, CloneIcon } from './Icons';
 import ExampleCarousel from './ExampleCarousel';
 import ToolOptionsPanel from './ToolOptionsPanel';
 import { useAppContext } from '../context/AppContext';
@@ -16,50 +17,60 @@ import { useDebouncedCallback } from 'use-debounce';
 const EDITOR_STATE_KEY = 'clipyube-editor-state';
 const CUSTOM_FILTERS_KEY = 'clipyube-custom-filters';
 const VIDEO_PRESETS_KEY = 'clipyube-video-presets';
+const SAVED_PROJECT_KEY = 'clipyube-saved-project';
 
-type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'devicepreview' | 'video' | 'watermark' | 'ai-edit' | 'effects' | 'brush' | 'image-search';
+type Tool = 'filters' | 'adjustments' | 'upscale' | 'colorsplash' | 'devicepreview' | 'video' | 'watermark' | 'ai-edit' | 'effects' | 'brush' | 'image-search' | 'history';
 
 const getFriendlyErrorMessage = (error: unknown, operation: string): string => {
     if (!(error instanceof Error)) {
-        return `An unknown error occurred during ${operation}.`;
+        return `An unexpected issue occurred during ${operation}. Please try again.`;
     }
 
-    const message = error.message; // Keep case for API key names
+    const message = error.message;
     const lowerMessage = message.toLowerCase();
 
-    // Specific check for Runway API Key. The service throws an error with this exact variable name.
+    // Configuration specific
     if (message.includes('RUNWAY_API_KEY')) {
-        return `Runway API Key Error: The 'RUNWAY_API_KEY' is missing or invalid. Please configure it in your environment to enable video generation.`;
+        return `Configuration Missing: The Runway API key is not set on the server. Video generation is unavailable.`;
     }
 
-    // Specific check for Gemini API Key from our backend proxy or Gemini itself.
-    if (message.includes('API_KEY') || lowerMessage.includes('api key not valid') || lowerMessage.includes('api_key_invalid') || lowerMessage.includes('requested entity was not found')) {
-        return `Gemini API Key Error: Your key seems to be invalid or missing. Please ensure the 'API_KEY' is configured correctly on the server for image editing features.`;
+    // Authentication & API Key
+    if (message.includes('API_KEY') || lowerMessage.includes('api key') || lowerMessage.includes('unauthorized') || lowerMessage.includes('401') || lowerMessage.includes('403')) {
+        return `Authentication Failed: The AI service rejected the API key. Please verify your server configuration.`;
     }
 
-    if (lowerMessage.includes('safety policies') || lowerMessage.includes('prompt was blocked') || lowerMessage.includes('candidate was blocked')) {
-        return `Content Policy Violation: Your request for '${operation}' was blocked. Please try rephrasing your prompt to be more specific and avoid potentially sensitive topics.`;
+    // Content Safety (Gemini/Runway)
+    if (lowerMessage.includes('safety') || lowerMessage.includes('blocked') || lowerMessage.includes('policy') || lowerMessage.includes('harmful') || lowerMessage.includes('sexually') || lowerMessage.includes('hate') || lowerMessage.includes('filtered')) {
+        return `Content Policy Violation: The AI model flagged your prompt as potentially unsafe. Please try a different, less sensitive prompt.`;
     }
 
-    if (lowerMessage.includes('quota')) {
-        return `Quota Exceeded: You have exceeded your API usage limits. Please check your account status and billing information.`;
+    // Quota & Rate Limits
+    if (lowerMessage.includes('quota') || lowerMessage.includes('limit') || lowerMessage.includes('429') || lowerMessage.includes('exhausted')) {
+        return `Usage Limit Reached: You have hit the rate limit for the AI service. Please try again in a few minutes.`;
     }
-    
+
+    // Billing
     if (lowerMessage.includes('billing')) {
-         return `Billing Error: There may be an issue with your billing account. Please ensure it's active and has a valid payment method.`;
+         return `Billing Error: There is an issue with the cloud account billing. Please verify payment details.`;
     }
 
-    if (lowerMessage.includes('network request failed') || lowerMessage.includes('fetch')) {
-        return `Network Error: Could not connect to the AI service. Please check your internet connection and try again.`;
+    // Server Side / Capacity
+    if (lowerMessage.includes('overloaded') || lowerMessage.includes('busy') || lowerMessage.includes('503') || lowerMessage.includes('500') || lowerMessage.includes('internal server error')) {
+        return `System Busy: The AI models are currently experiencing high traffic. Please wait a moment and try again.`;
+    }
+
+    // Network / Connectivity
+    if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('connection') || message === 'Failed to fetch') {
+        return `Connection Error: Could not reach the server. Please check your internet connection and ensure the backend is running.`;
     }
     
-    // Default Gemini API error
-    if (lowerMessage.includes('gemini api')) {
-        const cleanerMessage = message.replace(/an error occurred during .*? with the gemini api:/i, '').trim();
-        return `AI Model Error during ${operation}: ${cleanerMessage}. Please try a different prompt or try again later.`;
+    // Resource Not Found
+    if (lowerMessage.includes('not found') || lowerMessage.includes('404')) {
+        return `Resource Not Found: The requested resource could not be found during ${operation}.`;
     }
 
-    return `An unexpected error occurred during ${operation}: ${error.message}`;
+    // Fallback
+    return `Error during ${operation}: ${message}`;
 };
 
 
@@ -74,7 +85,7 @@ const filters = [
 ];
 
 const presets = [
-    { name: 'Odinary Neon', value: 'contrast(1.2) saturate(1.8) brightness(1.1) hue-rotate(-15deg)', type: 'css' },
+    { name: 'Ordinary Neon', value: 'contrast(1.2) saturate(1.8) brightness(1.1) hue-rotate(-15deg)', type: 'css' },
     { name: 'Bear-Market Red', value: 'sepia(0.4) contrast(1.1) brightness(0.9) hue-rotate(-20deg) saturate(1.3)', type: 'css' },
     { name: 'Solana Cyan', value: 'saturate(1.6) contrast(1.1) brightness(1.05) hue-rotate(180deg) sepia(0.2)', type: 'css' },
     { name: 'Vintage Poster', value: 'sepia(0.6) saturate(1.4) contrast(0.9) brightness(1.1)', type: 'css' },
@@ -204,6 +215,8 @@ const videoStyles = [
     { name: 'Vlog', description: 'Handheld, personal, and conversational style.' },
 ];
 
+const searchStyles = ['None', 'Photorealistic', 'Cinematic', 'Anime', 'Digital Art', 'Oil Painting', 'Sketch', 'Cyberpunk', 'Minimalist'];
+
 
 // Define a unified state for the history stack
 interface HistoryState {
@@ -213,6 +226,7 @@ interface HistoryState {
     prompt: string;
     activeFilter: string;
     adjustments: typeof defaultAdjustments;
+    action: string;
 }
 
 const defaultEffects = {
@@ -221,6 +235,58 @@ const defaultEffects = {
 };
 
 const MotionImg = motion.img;
+
+const HistoryPanel: React.FC<{
+    history: HistoryState[];
+    currentIndex: number;
+    onJump: (index: number) => void;
+    onClone: (index: number) => void;
+}> = ({ history, currentIndex, onJump, onClone }) => {
+    const listRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const currentItem = listRef.current?.querySelector(`[data-index="${currentIndex}"]`) as HTMLElement;
+        if (currentItem) {
+            currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [currentIndex]);
+
+    return (
+        <div ref={listRef} className="max-h-96 overflow-y-auto space-y-2 pr-2 -mr-2">
+            {history.map((state, index) => (
+                <motion.div
+                    key={state.id}
+                    data-index={index}
+                    className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-colors group ${currentIndex === index ? 'bg-cyan-500/20' : 'hover:bg-white/10'}`}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                >
+                    <button onClick={() => onJump(index)} className="flex items-center gap-3 flex-grow text-left min-w-0">
+                        <div className="relative w-10 h-10 flex-shrink-0">
+                             <img src={state.imageUrl} alt={state.action} className="w-full h-full object-cover rounded-md border border-white/10" />
+                        </div>
+                        <div className="flex-grow overflow-hidden">
+                            <p className={`text-sm truncate font-medium ${currentIndex === index ? 'text-cyan-300' : 'text-slate-200'}`}>{state.action}</p>
+                             <p className="text-xs text-slate-500">Step {index + 1}</p>
+                        </div>
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onClone(index); }}
+                        className="flex-shrink-0 p-2 rounded-full text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        title="Clone this step to start a new branch"
+                        aria-label={`Clone step ${index + 1}`}
+                    >
+                        <CloneIcon />
+                    </button>
+                </motion.div>
+            ))}
+            {history.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">Your edit history will appear here.</p>
+            )}
+        </div>
+    );
+};
+
 
 export const ImageEditor: React.FC = () => {
     const { automation, clearAutomation } = useAppContext();
@@ -315,6 +381,7 @@ export const ImageEditor: React.FC = () => {
 
     // Image Search state
     const [imageSearchQuery, setImageSearchQuery] = useState<string>('');
+    const [imageSearchStyle, setImageSearchStyle] = useState<string>('Photorealistic');
     const [imageSearchResults, setImageSearchResults] = useState<string[]>([]);
     const [isSearchingImages, setIsSearchingImages] = useState<boolean>(false);
 
@@ -356,18 +423,20 @@ export const ImageEditor: React.FC = () => {
     }, [automation, clearAutomation]);
 
 
-    const updateHistory = useCallback((newState: Partial<HistoryState>) => {
+    const updateHistory = useCallback((newState: Partial<HistoryState>, action: string) => {
         const currentState = history[currentHistoryIndex];
-        if (!currentState) {
-            console.error("Attempted to update history with no current state. This is a bug.");
-            return;
+        // If there's no state, we can't update. This should only happen if called before an image is loaded.
+        if (!currentState && history.length > 0) {
+             console.error("Attempted to update history without a current valid state. This is a bug.");
+             return;
         }
         
         const newHistoryState: HistoryState = {
-            ...currentState,
+            ...(currentState || {}), // Start with current or empty object
             ...newState,
+            action,
             id: `hist-${Date.now()}-${Math.random()}`
-        };
+        } as HistoryState;
 
         const newHistory = [...history.slice(0, currentHistoryIndex + 1), newHistoryState];
         
@@ -377,7 +446,7 @@ export const ImageEditor: React.FC = () => {
 
     // Debounced function to commit adjustment changes to history
     const debouncedUpdateHistoryForAdjustments = useDebouncedCallback((newAdjustments: typeof defaultAdjustments) => {
-        updateHistory({ adjustments: newAdjustments });
+        updateHistory({ adjustments: newAdjustments }, "Adjustments");
     }, 300);
 
     const handleAdjustmentChange = (key: keyof typeof defaultAdjustments, value: number) => {
@@ -456,7 +525,7 @@ export const ImageEditor: React.FC = () => {
 
                         const newDataUrl = canvas.toDataURL('image/png');
                         const newFile = await dataUrlToFile(newDataUrl, `${filterName}-effect.png`);
-                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile, activeFilter: 'none' });
+                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile, activeFilter: 'none' }, `Canvas: ${filterName}`);
                         resolve();
                     } catch (e) { reject(e); }
                 };
@@ -472,7 +541,7 @@ export const ImageEditor: React.FC = () => {
 
     const handleFilterChange = (filter: EditorFilter) => {
         if (filter.type === 'css') {
-            updateHistory({ activeFilter: filter.value });
+            updateHistory({ activeFilter: filter.value }, `Filter: ${filter.name}`);
         } else {
             applyCanvasFilter(filter.value);
         }
@@ -495,7 +564,8 @@ export const ImageEditor: React.FC = () => {
                             imageFile: imageFile,
                             prompt: savedState.prompt || '',
                             activeFilter: savedState.activeFilter || 'none',
-                            adjustments: savedState.adjustments || defaultAdjustments
+                            adjustments: savedState.adjustments || defaultAdjustments,
+                            action: 'Session Restored',
                         };
                         setHistory([initialState]);
                         setCurrentHistoryIndex(0);
@@ -569,7 +639,8 @@ export const ImageEditor: React.FC = () => {
                     imageFile: file,
                     prompt: '',
                     activeFilter: 'none',
-                    adjustments: defaultAdjustments
+                    adjustments: defaultAdjustments,
+                    action: 'Image Loaded'
                 };
                 setHistory([initialState]);
                 setCurrentHistoryIndex(0);
@@ -613,9 +684,9 @@ export const ImageEditor: React.FC = () => {
              Object.keys(defaultAdjustments).some(key => currentHistoryState.adjustments[key as keyof typeof defaultAdjustments] !== defaultAdjustments[key as keyof typeof defaultAdjustments]);
     }, [currentHistoryState]);
 
-    const bakeAndCommitEffects = useCallback(async (): Promise<HistoryState> => {
+    const bakeAndCommitEffects = useCallback(async (): Promise<Pick<HistoryState, 'imageUrl' | 'imageFile'>> => {
         if (!currentHistoryState || !isCurrentStateAdjusted) {
-            return currentHistoryState!;
+             return { imageUrl: currentHistoryState!.imageUrl, imageFile: currentHistoryState!.imageFile };
         }
 
         const image = new Image();
@@ -643,28 +714,13 @@ export const ImageEditor: React.FC = () => {
                     const newDataUrl = tempCanvas.toDataURL('image/png');
                     const newFile = await dataUrlToFile(newDataUrl, 'baked-image.png');
                     
-                    const bakedState: HistoryState = {
-                        id: `hist-baked-${Date.now()}`,
-                        imageUrl: newDataUrl,
-                        imageFile: newFile,
-                        prompt: currentHistoryState.prompt,
-                        activeFilter: 'none',
-                        adjustments: defaultAdjustments
-                    };
-                    
-                    updateHistory({
-                        imageUrl: bakedState.imageUrl,
-                        imageFile: bakedState.imageFile,
-                        activeFilter: bakedState.activeFilter,
-                        adjustments: bakedState.adjustments
-                    });
-                    resolve(bakedState);
+                    resolve({ imageUrl: newDataUrl, imageFile: newFile });
 
                 } catch (e) { reject(e); }
             };
             image.onerror = () => reject(new Error("Failed to load image for baking effects."));
         });
-    }, [currentHistoryState, isCurrentStateAdjusted, updateHistory]);
+    }, [currentHistoryState, isCurrentStateAdjusted]);
 
     const handleGenerate = useCallback(async () => {
         if (!currentHistoryState?.imageFile || !prompt.trim()) {
@@ -679,19 +735,25 @@ export const ImageEditor: React.FC = () => {
         setCaption(null);
 
         try {
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) throw new Error("Could not prepare image for AI generation.");
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) throw new Error("Could not prepare image for AI generation.");
             
-            const base64Data = await fileToBase64(bakedState.imageFile);
+            const base64Data = await fileToBase64(bakedImageFile);
             
             let finalPrompt = prompt.trim();
             if (quality === 'Low') finalPrompt += ', low quality, low resolution.';
             else if (quality === 'High') finalPrompt += ', high quality, 4k resolution, sharp details.';
 
-            const resultUrl = await editImageWithPrompt(base64Data, bakedState.imageFile.type, finalPrompt);
+            const resultUrl = await editImageWithPrompt(base64Data, bakedImageFile.type, finalPrompt);
             const resultFile = await dataUrlToFile(resultUrl, 'edited-image.png');
             
-            updateHistory({ imageUrl: resultUrl, imageFile: resultFile, prompt: prompt });
+            updateHistory({ 
+                imageUrl: resultUrl, 
+                imageFile: resultFile, 
+                prompt: prompt,
+                activeFilter: 'none',
+                adjustments: defaultAdjustments
+            }, `AI: "${prompt.substring(0, 15)}..."`);
 
         } catch (err) {
             console.error("AI Generation Error:", err);
@@ -713,16 +775,21 @@ export const ImageEditor: React.FC = () => {
         setError(null);
 
         try {
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) {
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) {
                 throw new Error("Could not prepare image for background removal.");
             }
             
-            const base64Data = await fileToBase64(bakedState.imageFile);
-            const resultUrl = await removeImageBackground(base64Data, bakedState.imageFile.type);
+            const base64Data = await fileToBase64(bakedImageFile);
+            const resultUrl = await removeImageBackground(base64Data, bakedImageFile.type);
             const resultFile = await dataUrlToFile(resultUrl, 'bg-removed-image.png');
             
-            updateHistory({ imageUrl: resultUrl, imageFile: resultFile });
+            updateHistory({ 
+                imageUrl: resultUrl, 
+                imageFile: resultFile,
+                activeFilter: 'none',
+                adjustments: defaultAdjustments
+            }, "BG Removal");
 
         } catch (err) {
             setError(getFriendlyErrorMessage(err, 'Background Removal'));
@@ -743,16 +810,21 @@ export const ImageEditor: React.FC = () => {
         setError(null);
 
         try {
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) {
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) {
                 throw new Error("Could not prepare image for upscaling.");
             }
             
-            const base64Data = await fileToBase64(bakedState.imageFile);
-            const resultUrl = await upscaleImage(base64Data, bakedState.imageFile.type, 2); // Hardcode 2x for now
+            const base64Data = await fileToBase64(bakedImageFile);
+            const resultUrl = await upscaleImage(base64Data, bakedImageFile.type, 2); // Hardcode 2x for now
             const resultFile = await dataUrlToFile(resultUrl, 'upscaled-image.png');
             
-            updateHistory({ imageUrl: resultUrl, imageFile: resultFile });
+            updateHistory({ 
+                imageUrl: resultUrl, 
+                imageFile: resultFile,
+                activeFilter: 'none',
+                adjustments: defaultAdjustments
+            }, "Upscale 2x");
 
         } catch (err) {
             setError(getFriendlyErrorMessage(err, 'Image Upscaling'));
@@ -798,6 +870,102 @@ export const ImageEditor: React.FC = () => {
             catch (e) { console.error("Failed to clear state from localStorage", e); }
         }
     };
+
+    const handleSaveProject = useCallback(() => {
+        if (!currentHistoryState) {
+            setError("No active project to save.");
+            return;
+        }
+        
+        // Flush pending adjustments if any
+        debouncedUpdateHistoryForAdjustments.flush();
+
+        // Serialize history excluding File objects which are not stringifiable
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const serializedHistory = history.map(({ imageFile, ...rest }) => rest);
+
+        const projectData = {
+            version: 2,
+            history: serializedHistory,
+            currentIndex: currentHistoryIndex,
+            prompt,
+            quality,
+            // Keep legacy fields for backward compatibility if loaded by older versions
+            imageUrl: currentHistoryState.imageUrl,
+            activeFilter: currentHistoryState.activeFilter,
+            adjustments: currentHistoryState.adjustments
+        };
+
+        try {
+            localStorage.setItem(SAVED_PROJECT_KEY, JSON.stringify(projectData));
+            alert("Project saved to local storage!");
+        } catch (e) {
+            console.error("Save failed", e);
+            setError(getFriendlyErrorMessage(e, 'Saving Project'));
+        }
+    }, [currentHistoryState, history, currentHistoryIndex, prompt, quality, debouncedUpdateHistoryForAdjustments]);
+
+    const handleLoadProject = useCallback(async () => {
+        const savedJSON = localStorage.getItem(SAVED_PROJECT_KEY);
+        if (!savedJSON) {
+            setError("No saved project found.");
+            return;
+        }
+
+        if (currentHistoryState && !window.confirm("This will overwrite your current work. Continue?")) {
+            return;
+        }
+
+        setIsLoading(true);
+        setLoadingMessage("Loading project...");
+
+        try {
+            const projectData = JSON.parse(savedJSON);
+            let restoredHistory: HistoryState[] = [];
+            let restoredIndex = 0;
+
+            if (projectData.version === 2 && Array.isArray(projectData.history)) {
+                // Restore full history from V2 format
+                restoredHistory = await Promise.all(projectData.history.map(async (item: any) => {
+                    const file = await dataUrlToFile(item.imageUrl, `restored-${item.id}.png`);
+                    return {
+                        ...item,
+                        imageFile: file
+                    } as HistoryState;
+                }));
+                restoredIndex = projectData.currentIndex ?? (restoredHistory.length - 1);
+            } else {
+                // Fallback: Restore legacy single-state format
+                const file = await dataUrlToFile(projectData.imageUrl, 'project.png');
+                const newState: HistoryState = {
+                    id: `hist-loaded-${Date.now()}`,
+                    imageUrl: projectData.imageUrl,
+                    imageFile: file,
+                    prompt: projectData.prompt || '',
+                    activeFilter: projectData.activeFilter || 'none',
+                    adjustments: projectData.adjustments || defaultAdjustments,
+                    action: 'Project Loaded'
+                };
+                restoredHistory = [newState];
+                restoredIndex = 0;
+            }
+
+            handleReset(true);
+
+            setHistory(restoredHistory);
+            setCurrentHistoryIndex(restoredIndex);
+            setPrompt(projectData.prompt || '');
+            setQuality(projectData.quality || 'Medium');
+            setActiveTool('ai-edit');
+            
+        } catch (e) {
+            console.error("Load failed", e);
+            setError(getFriendlyErrorMessage(e, 'Loading Project'));
+        } finally {
+            setIsLoading(false);
+            setLoadingMessage("");
+        }
+    }, [currentHistoryState]);
 
     const drawWatermarkOnContext = (
         ctx: CanvasRenderingContext2D,
@@ -865,7 +1033,7 @@ export const ImageEditor: React.FC = () => {
             setPrompt(examplePrompt);
         } catch (error) {
             console.error("Failed to load example image:", error);
-            setError("Could not load the example image. Please check your network connection.");
+            setError(getFriendlyErrorMessage(error, 'Loading Example'));
         }
     };
 
@@ -879,6 +1047,24 @@ export const ImageEditor: React.FC = () => {
         if (currentHistoryIndex < history.length - 1) {
             setCurrentHistoryIndex(currentHistoryIndex + 1);
         }
+    };
+
+    const handleCloneHistoryState = (indexToClone: number) => {
+        if (indexToClone < 0 || indexToClone >= history.length) return;
+
+        const stateToClone = history[indexToClone];
+        
+        const clonedState: HistoryState = {
+            ...stateToClone,
+            id: `hist-cloned-${Date.now()}`,
+            action: `Branch from Step ${indexToClone + 1}`
+        };
+
+        // Create a new branch by appending to the end of history.
+        // This preserves the original branch (and any redo history) while starting a new timeline.
+        const newHistory = [...history, clonedState];
+        setHistory(newHistory);
+        setCurrentHistoryIndex(newHistory.length - 1);
     };
     
     const handleVideoGenerate = useCallback(async () => {
@@ -909,12 +1095,12 @@ export const ImageEditor: React.FC = () => {
                 fullVideoPrompt += ` With caption text: "${caption.text}"`;
             }
     
-            const bakedState = await bakeAndCommitEffects();
-            if (!bakedState || !bakedState.imageFile) {
+            const { imageFile: bakedImageFile } = await bakeAndCommitEffects();
+            if (!bakedImageFile) {
                 throw new Error("Could not prepare image for video generation.");
             }
-            const imageBase64 = await fileToBase64(bakedState.imageFile);
-            const imageMimeType = bakedState.imageFile.type;
+            const imageBase64 = await fileToBase64(bakedImageFile);
+            const imageMimeType = bakedImageFile.type;
             
             const videoUrl = await generateVideoWithRunway(
                 fullVideoPrompt,
@@ -943,7 +1129,11 @@ export const ImageEditor: React.FC = () => {
         setError(null);
         setImageSearchResults([]);
         try {
-            const results = await searchImages(imageSearchQuery);
+            const finalPrompt = imageSearchStyle === 'None' 
+                ? imageSearchQuery 
+                : `${imageSearchQuery}, ${imageSearchStyle} style`;
+                
+            const results = await searchImages(finalPrompt);
             if (results.length === 0) {
                 setError('No images found for your query.');
             }
@@ -1118,7 +1308,7 @@ export const ImageEditor: React.FC = () => {
                         const newDataUrl = canvas.toDataURL('image/png');
                         const newFile = await dataUrlToFile(newDataUrl, 'brushed-image.png');
 
-                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile });
+                        updateHistory({ imageUrl: newDataUrl, imageFile: newFile }, "Brush Applied");
                         handleClearBrush();
                         resolve();
 
@@ -1182,8 +1372,8 @@ export const ImageEditor: React.FC = () => {
                         <button onClick={resetZoomAndPan} className="p-2 rounded-md hover:bg-white/10"><ResetZoomIcon/></button>
                      </div>
                      <div className="flex items-center gap-2">
-                        <button onClick={() => {}} className="p-2 rounded-md hover:bg-white/10"><SaveIcon/></button>
-                        <button onClick={() => {}} className="p-2 rounded-md hover:bg-white/10"><LoadIcon/></button>
+                        <button onClick={handleSaveProject} className="p-2 rounded-md hover:bg-white/10" title="Save Project" aria-label="Save Project"><SaveIcon/></button>
+                        <button onClick={handleLoadProject} className="p-2 rounded-md hover:bg-white/10" title="Load Project" aria-label="Load Project"><LoadIcon/></button>
                      </div>
                 </div>
                 <div ref={imageContainerRef} className="relative w-full aspect-square bg-black/30 rounded-2xl overflow-hidden flex items-center justify-center">
@@ -1283,6 +1473,10 @@ export const ImageEditor: React.FC = () => {
                             <VideoIcon />
                              <span className="mt-1">Video</span>
                         </button>
+                         <button onClick={() => toggleTool('history')} className={toolButtonClasses('history')}>
+                            <HistoryIcon />
+                             <span className="mt-1">History</span>
+                        </button>
                         <button onClick={handleRemoveBackground} disabled={isLoading} className="p-2 rounded-lg transition-colors duration-200 flex flex-col items-center justify-center text-xs w-full h-16 text-center bg-slate-700/50 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
                             {isLoading && loadingMessage.includes('background') ? <Loader/> : <BackgroundEraserIcon />}
                             <span className="mt-1">{isLoading && loadingMessage.includes('background') ? 'Erasing...' : 'BG Erase'}</span>
@@ -1293,6 +1487,10 @@ export const ImageEditor: React.FC = () => {
                         </button>
                     </div>
                 </div>
+
+                <ToolOptionsPanel title="History" icon={<HistoryIcon />} isOpen={toolIsActive('history')} onToggle={() => toggleTool('history')}>
+                    <HistoryPanel history={history} currentIndex={currentHistoryIndex} onJump={setCurrentHistoryIndex} onClone={handleCloneHistoryState} />
+                </ToolOptionsPanel>
 
                 <ToolOptionsPanel title="Filters" icon={<FilterIcon />} isOpen={toolIsActive('filters')} onToggle={() => toggleTool('filters')}>
                     <div className="grid grid-cols-3 gap-2">
@@ -1418,23 +1616,35 @@ export const ImageEditor: React.FC = () => {
                 
                 <ToolOptionsPanel title="Image Search" icon={<SearchIcon />} isOpen={toolIsActive('image-search')} onToggle={() => toggleTool('image-search')}>
                     <div className="space-y-4">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={imageSearchQuery}
-                                onChange={(e) => setImageSearchQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && !isSearchingImages && handleImageSearch()}
-                                placeholder="e.g., A photorealistic cat astronaut"
-                                className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg"
+                         <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={imageSearchQuery}
+                                    onChange={(e) => setImageSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && !isSearchingImages && handleImageSearch()}
+                                    placeholder="e.g., A photorealistic cat astronaut"
+                                    className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg"
+                                    disabled={isSearchingImages}
+                                />
+                                <button
+                                    onClick={handleImageSearch}
+                                    disabled={isSearchingImages || !imageSearchQuery.trim()}
+                                    className="flex items-center justify-center gap-2 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-500 disabled:bg-slate-600 transition-colors"
+                                >
+                                    {isSearchingImages ? <Loader /> : <SearchIcon />}
+                                </button>
+                            </div>
+                            <select
+                                value={imageSearchStyle}
+                                onChange={(e) => setImageSearchStyle(e.target.value)}
+                                className="w-full p-2 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-300 text-sm focus:ring-2 focus:ring-cyan-500 outline-none"
                                 disabled={isSearchingImages}
-                            />
-                            <button
-                                onClick={handleImageSearch}
-                                disabled={isSearchingImages || !imageSearchQuery.trim()}
-                                className="flex items-center justify-center gap-2 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-500 disabled:bg-slate-600 transition-colors"
                             >
-                                {isSearchingImages ? <Loader /> : <SearchIcon />}
-                            </button>
+                                {searchStyles.map(style => (
+                                    <option key={style} value={style}>{style}</option>
+                                ))}
+                            </select>
                         </div>
 
                         {isSearchingImages && (

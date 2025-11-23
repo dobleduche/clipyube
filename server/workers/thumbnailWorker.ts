@@ -1,53 +1,33 @@
-// server/workers/thumbnailWorker.ts  (automation thumbnails)
-import { Worker } from "bullmq";
-import { redisConnection, thumbnailQueue } from "../queues";
-import { generateThumbnail } from "../services/thumbnailService";
-import * as db from "../db";
+// server/workers/thumbnailWorker.ts
+import { Worker } from 'bullmq';
+import { redisConnection, thumbnailQueue } from '../queues';
+import { generateThumbnail } from '../services/thumbnailService';
+import * as db from '../db';
 
 interface ThumbnailJobData {
   draftId: string;
 }
 
-const log = (type: "info" | "success" | "error", msg: string) => {
-  const entry = `[THUMB_WORKER] [${new Date().toISOString()}] [${type}] ${msg}`;
-  console.log(entry);
-  db.addAutomationLog(entry, type);
-};
+console.log(`[${new Date().toISOString()}] Starting Thumbnail Worker...`);
 
-console.log(`[${new Date().toISOString()}] Thumbnail Worker Online…`);
+new Worker<ThumbnailJobData, void, string>(thumbnailQueue.name, async (job) => {
+  const { draftId } = job.data;
 
-new Worker<ThumbnailJobData>(
-  thumbnailQueue.name,
-  async (job) => {
-    const { draftId } = job.data;
-
-    if (!draftId) {
-      throw new Error(
-        `thumbnailWorker received invalid draftId for job ${job.id}`
-      );
-    }
-
-    log("info", `Processing job ${job.id} → draft ${draftId}`);
-
-    try {
-      await generateThumbnail(draftId);
-      log(
-        "success",
-        `Thumbnail generated for job ${job.id} → draft ${draftId}`
-      );
-    } catch (err: any) {
-      const msg =
-        err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
-
-      log(
-        "error",
-        `Thumbnail failed for job ${job.id} → draft ${draftId}: ${msg}`
-      );
-      throw err;
-    }
-  },
-  {
-    connection: redisConnection,
-    concurrency: 3, // thumbnail generation is lightweight
+  if (!draftId || typeof draftId !== 'string') {
+    throw new Error(`Invalid draftId in job ${job.id}: ${draftId}`);
   }
-);
+
+  db.addAutomationLog(`[${new Date().toISOString()}] Thumbnail worker processing job ${job.id} for draft ${draftId}`);
+  try {
+    await generateThumbnail(draftId);
+    db.addAutomationLog(`[${new Date().toISOString()}] Successfully generated thumbnail for job ${job.id} and draft ${draftId}.`, 'success');
+  } catch (error) {
+    const message = error instanceof Error ? `${error.message}\nStack: ${error.stack}` : "Unknown error";
+    db.addAutomationLog(`[${new Date().toISOString()}] Thumbnail worker job ${job.id} failed for draft ${draftId}: ${message}`, 'error');
+    throw error;
+  }
+}, {
+  connection: redisConnection,
+  concurrency: 2, // Can run a few in parallel as it's API-bound
+  // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
+});

@@ -1,48 +1,33 @@
 {
-  "name": "clipyube-ai-powered-image-dynamic-content-editor",
-  "private": true,
-  "version": "0.0.0",
+  "name": "clipyube",
+  "version": "1.0.0",
+  "description": "A cutting-edge application enabling users to effortlessly edit images with intuitive text prompts, leveraging the advanced Gemini 2.5 Flash Image model. Upload any image, issue commands like 'Add a retro filter' or 'Enhance colors', and get stunning AI-generated results in seconds. Perfect for creators, designers, and casual users alike.",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "start": "npx tsx server/index.ts"
+ "scripts": {
+  "postinstall": "node installHook.js",
+  "dev": "npx tsx watch server/index.ts",
+  "build": "tsc -p tsconfig.json",
+  "start": "node dist/server/index.js",
+  "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
-    "@runwayml/sdk": "^3.7.0",
-    "@tailwindcss/vite": "^4.1.17",
-    "body-parser": "^2.2.0",
-    "bull": "^4.16.5",
     "bullmq": "^5.10.1",
     "cors": "^2.8.5",
-    "detect-port": "^2.1.0",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "express-rate-limit": "^8.2.1",
+    "express": "^4.19.2",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
     "fluent-ffmpeg": "^2.1.3",
-    "framer-motion": "^11.3.12",
-    "helmet": "^8.1.0",
     "ioredis": "^5.4.1",
-    "openai": "^4.52.7",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "redis": "^5.9.0",
-    "sanitize-html": "^2.17.0",
-    "use-debounce": "^10.0.6"
+    "openai": "^4.52.7"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.1.1",
-    "@vitejs/plugin-react-swc": "^4.2.2",
-    "autoprefixer": "^10.4.22",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.17",
-    "tsx": "^4.20.6",
-    "typescript": "~5.8.2",
-    "vite": "^6.4.1"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/fluent-ffmpeg": "^2.1.24",
+    "@types/node": "^20.14.10",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
   }
 }
