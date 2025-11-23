@@ -1,0 +1,7 @@
+# Format: original ==> replacement
+# (one mapping per line)
+
+sk_live_ ==> sk_live_REDACTED
+supabase_service_role_ ==> supabase_service_role_REDACTED
+AIzaSy ==> AIzaSy_REDACTED
+ghp_ ==> ghp_REDACTED
