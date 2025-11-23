@@ -18,7 +18,7 @@ build – typechecks + builds without errors.
 
 start – runs the production build.
 
-Trending signal ingestion layer
+## Trending signal ingestion layer
 
 Implement a pluggable “source” interface for:
 
