@@ -1,52 +1,52 @@
 # Take the clipyube repo from prototype to a production-ready viral content engine that:
 
-watches trending signals (YouTube/TikTok/Google Trends/RSS/X handles like @elonmusk, @0xkitchens),
+- watches trending signals (YouTube/TikTok/Google Trends/RSS/X handles like @elonmusk, @0xkitchens),
 
-generates derivative content (titles, scripts, blog posts, social captions),
+- generates derivative content (titles, scripts, blog posts, social captions),
 
-and publishes to the ClipYube platform + social channels on a schedule or trigger.
+- and publishes to the ClipYube platform + social channels on a schedule or trigger.
 
 ## Clarify architecture & stabilize build
 
-Inspect package.json, server/**, src/**, tsconfig*.json, and any frontend.
+- Inspect package.json, server/**, src/**, tsconfig*.json, and any frontend.
 
-Fix all build issues and wire scripts:
+- Fix all build issues and wire scripts:
 
-dev – local dev server (API + web UI if present).
+- dev – local dev server (API + web UI if present).
 
-build – typechecks + builds without errors.
+- build – typechecks + builds without errors.
 
-start – runs the production build.
+- start – runs the production build.
 
 ## Trending signal ingestion layer
 
-Implement a pluggable “source” interface for:
+- Implement a pluggable “source” interface for:
 
-YouTube trending / search by keyword or channel.
+  - YouTube trending / search by keyword or channel.
 
-Google Trends / RSS feeds.
+  - Google Trends / RSS feeds.
 
-X/Twitter handles (e.g., @elonmusk, @0xkitchens) via official APIs only.
+  - X/Twitter handles (e.g., @elonmusk, @0xkitchens) via official APIs only.
 
-Add a scheduler (BullMQ + Redis or cron) to:
+- Add a scheduler (BullMQ + Redis or cron) to:
 
-poll sources on an interval,
+  - poll sources on an interval,
 
-normalize results into a trending_topics table/collection (id, source, keyword, metadata, score, firstSeenAt, lastSeenAt).
+  - normalize results into a trending_topics table/collection (id, source, keyword, metadata, score, firstSeenAt, lastSeenAt).
 
-Expose admin API endpoints + minimal UI to:
+- Expose admin API endpoints + minimal UI to:
 
-view active topics,
+  - view active topics,
 
-whitelist/blacklist topics,
+  - whitelist/blacklist topics,
 
-configure keywords/handles to monitor.
+  - configure keywords/handles to monitor.
 
 ## Content generation pipeline
 
-Implement a queue-based pipeline:
+- Implement a queue-based pipeline:
 
-Input: trending_topic + configuration (content type mix, language, max length).
+  - Input: trending_topic + configuration (content type mix, language, max length).
 
 Steps:
 
