@@ -130,7 +130,7 @@ required env vars,
 
 health checks (e.g., /api/health reporting DB/Redis/queue status).
 
-Documentation
+## Documentation
 
 Update README.md to cover:
 
