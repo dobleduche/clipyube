@@ -60,7 +60,7 @@ Use existing AI providers (OpenAI, Gemini, etc.) via well-abstracted service mod
 
 Persist all generated artifacts in a contents table with clear status fields: draft, readyToPublish, published, failed.
 
-Publishing & workflow control
+## Publishing & workflow control
 
 Implement a Publishing Service with providers:
 
