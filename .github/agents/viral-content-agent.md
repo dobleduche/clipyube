@@ -120,7 +120,7 @@ lint, test, typecheck, build,
 
 fails on any error.
 
-Deployment readiness
+## Deployment readiness
 
 Add a production Dockerfile (multi-stage: build + runtime).
 
