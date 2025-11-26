@@ -135,16 +135,11 @@ health checks (e.g., /api/health reporting DB/Redis/queue status).
 
 Update README.md to cover:
 
-system overview (trend ingestion → AI generation → publishing),
-
-setup (env vars, Redis/DB requirements),
-
-how to run dev, test, and prod,
-
-how to configure sources, topics, and auto-publish rules,
-
-how to deploy using the Docker image + CI workflow.
-
+- system overview (trend ingestion → AI generation → publishing)
+- setup (env vars, Redis/DB requirements)
+- how to run dev, test, and prod
+- how to configure sources, topics, and auto-publish rules
+- how to deploy using the Docker image + CI workflow
 ## Deliverables
 
 - Commits/PR that implement the above.
