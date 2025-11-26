@@ -63,29 +63,29 @@ Persist all generated artifacts in a contents table with clear status fields: dr
 
 ## Publishing & workflow control
 
-Implement a Publishing Service with providers:
+- Implement a Publishing Service with providers:
 
-ClipYube platform (internal DB / API).
+  - ClipYube platform (internal DB / API).
 
-YouTube (official Data API for video metadata; assume upload token exists).
+  - YouTube (official Data API for video metadata; assume upload token exists).
 
-Social platforms where APIs allow posting; for others, generate assets + export links for manual posting.
+  - Social platforms where APIs allow posting; for others, generate assets + export links for manual posting.
 
-Wire configuration for:
+- Wire configuration for:
 
-auto-publish vs. manual approval,
+  - auto-publish vs. manual approval,
 
-per-platform cadence (e.g., X every 2 hours, blog 1/day),
+  - per-platform cadence (e.g., X every 2 hours, blog 1/day),
 
-topic filters per channel (e.g., only Elon-related topics to specific feeds).
+  - topic filters per channel (e.g., only Elon-related topics to specific feeds).
 
-Expose dashboard/API to:
+- Expose dashboard/API to:
 
-see queued/published items,
+  - see queued/published items,
 
-pause/resume auto-publish,
+  - pause/resume auto-publish,
 
-re-trigger a workflow for a topic.
+  - re-trigger a workflow for a topic.
 
 ## Environment, security, and resilience
 
