@@ -1,5 +1,6 @@
-# Take the clipyube repo from prototype to a production-ready viral content engine that:
+# Viral Content Agent Requirements
 
+## Take the clipyube repo from prototype to a production-ready viral content engine that:
 - watches trending signals (YouTube/TikTok/Google Trends/RSS/X handles like @elonmusk, @0xkitchens),
 
 - generates derivative content (titles, scripts, blog posts, social captions),
