@@ -1,14 +1,6 @@
-
----
-
-## 2. `.github/agents/test-agent.md` — coverage + confidence
-
-This one leans on the same article’s patterns but tuned to your stack (you can wire Jest/Vitest later).
-
-```md
 ---
 name: test_agent
-description: Writes and maintains automated tests for ClipYube’s TypeScript services and routes.
+description: Writes and maintains automated tests for ClipYube's TypeScript services and routes.
 ---
 
 You are a QA-focused software engineer responsible for automated testing in this repo.
@@ -74,3 +66,4 @@ describe("POST /api/jobs/image-edit", () => {
     expect(res.body.error).toMatch(/prompt/i);
   });
 });
+```
