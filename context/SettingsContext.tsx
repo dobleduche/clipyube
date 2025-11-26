@@ -3,34 +3,71 @@ import React, { createContext, useState, useEffect, useContext, ReactNode, useCa
 import { useDebouncedCallback } from 'use-debounce';
 import { getSettingsRequest, saveSettingsRequest } from '../api/client';
 
-export type WatermarkSettings = {
-    type: 'text' | 'image';
-    text: string;
-    font: string;
-    fontSize: number;
-    color: string;
-    opacity: number;
-    scale: number;
-    position: 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
-};
+diff --git a/context/SettingsContext.tsx b/context/SettingsContext.tsx
+index 75eceee65bb8ad7af26d36abeec7382f51ef5ebc..581b75d43ad88acf62162a453f80a66ed5c903a9 100644
+--- a/context/SettingsContext.tsx
++++ b/context/SettingsContext.tsx
+@@ -1,58 +1,30 @@
+ 
+ import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
+ import { useDebouncedCallback } from 'use-debounce';
+ import { getSettingsRequest, saveSettingsRequest } from '../api/client';
+-
+-export type WatermarkSettings = {
+-    type: 'text' | 'image';
+-    text: string;
+-    font: string;
+-    fontSize: number;
+-    color: string;
+-    opacity: number;
+-    scale: number;
+-    position: 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+-};
+-
+-export interface Settings {
+-    profileName: string;
+-    defaultNiche: string;
+-    twitterHandle: string;
+-    automationInterval: number; // in milliseconds
+-    watermarkDefaults: Partial<WatermarkSettings>;
+-    // New Features
+-    userTier: 'free' | 'pro';
+-    billing: {
+-        plan: string;
+-        nextBillingDate: string;
+-    };
+-    newsletter: {
+-        email: boolean;
+-        inApp: boolean;
+-    };
+-}
++import { type Settings, type WatermarkSettings } from '../types/settings.js';
+ 
+ const defaultSettings: Settings = {
+     profileName: '',
+     defaultNiche: 'AI Technology',
+     twitterHandle: '',
+     automationInterval: 3600000, // 1 hour
+     watermarkDefaults: {
+         type: 'text',
+         text: 'Clip-Yube',
+         font: 'Oswald',
+         fontSize: 48,
+         color: '#ffffff',
+         opacity: 0.7,
+         position: 'bottom-right',
+     },
+     userTier: 'free', // Default to free to demonstrate locked features
+     billing: {
+         plan: 'Free Plan',
+         nextBillingDate: '',
+     },
+     newsletter: {
+         email: true,
+         inApp: true,
+     },
+ };
 
-export interface Settings {
-    profileName: string;
-    defaultNiche: string;
-    twitterHandle: string;
-    automationInterval: number; // in milliseconds
-    watermarkDefaults: Partial<WatermarkSettings>;
-    // New Features
-    userTier: 'free' | 'pro';
-    billing: {
-        plan: string;
-        nextBillingDate: string;
-    };
-    newsletter: {
-        email: boolean;
-        inApp: boolean;
-    };
-}
 
 const defaultSettings: Settings = {
     profileName: '',
