@@ -80,7 +80,7 @@ description: Transforms ClipYube into a production-ready viral content engine wi
 >
 >      * unit tests for source adapters, content generation orchestrator, and publishing service,
 >      * integration test for “topic in → content out → publish stub”.
->    * Add **ESLint + Prettier** and scripts: `lint`, `format`, `test`, `typecheck`.
+>    * Add **ESLint + Prettier** to `devDependencies` in `package.json`, then add scripts: `lint`, `format`, `test`, `typecheck`.
 >    * Create **GitHub Actions** workflow that on push to `main`:
 >
 >      * runs `npm ci`,
