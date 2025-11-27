@@ -1,7 +1,7 @@
 # Format: original ==> replacement
 # (one mapping per line)
-
+# For Google API keys, use a regex to match the full key (typically starts with AIzaSy and is followed by 35+ alphanumeric/underscore/hyphen characters)
 sk_live_ ==> sk_live_REDACTED
 supabase_service_role_ ==> supabase_service_role_REDACTED
-AIzaSy ==> AIzaSy_REDACTED
+AIzaSy[A-Za-z0-9-_]+ ==> AIzaSy_REDACTED
 ghp_ ==> ghp_REDACTED
