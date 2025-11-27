@@ -12,8 +12,12 @@ export const sanitizeHtml = (dirtyHtml: string): string => {
     let sanitized = dirtyHtml.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
 
     // 2. Remove inline event handlers (e.g., onload, onerror, onclick)
-    sanitized = sanitized.replace(/on\w+="[^"]*"/gi, '');
-    sanitized = sanitized.replace(/on\w+='[^']*'/gi, '');
+    let prevSanitized;
+    do {
+        prevSanitized = sanitized;
+        sanitized = sanitized.replace(/on\w+="[^"]*"/gi, '');
+        sanitized = sanitized.replace(/on\w+='[^']*'/gi, '');
+    } while (sanitized !== prevSanitized);
 
     // 3. Remove other dangerous tags like <style>, <link>, <iframe>, <object>, <embed>
     sanitized = sanitized.replace(/<\/?(style|link|iframe|object|embed)\b[^>]*>/gi, '');
