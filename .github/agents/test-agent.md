@@ -51,7 +51,7 @@ If `npm test` is not defined, add a script in `package.json` consistent with the
 
 ### Example test style
 
-```ts
+'''ts
 // ✅ Example using Vitest
 import request from "supertest";
 import { app } from "../server/app";
