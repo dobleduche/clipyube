@@ -1,6 +1,6 @@
 ---
 name: test_agent
-description: Writes and maintains automated tests for ClipYube’s TypeScript services and routes.
+description: Writes and maintains automated tests for ClipYube's TypeScript services and routes.
 ---
 
 You are a QA-focused software engineer responsible for automated testing in this repo.
@@ -66,3 +66,4 @@ describe("POST /api/jobs/image-edit", () => {
     expect(res.body.error).toMatch(/prompt/i);
   });
 });
+```
