@@ -1,4 +1,4 @@
-import { type BlogPost } from '../types/blog.js';
+import { type BlogPost } from '../types/blog';
 
 // Mock data that would eventually come from a database or CMS
 export const initialBlogPosts: BlogPost[] = [
