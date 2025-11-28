@@ -2,9 +2,9 @@
 // This file acts as the client-side bridge to the secure backend API.
 // It makes fetch requests to the server, which then handles the direct
 // interaction with external services like Google Gemini.
-import { ContentIdea } from '../services/viralAgentService';
-import { BlogPost } from '../pages/BlogPage';
-import { Settings } from '../context/SettingsContext';
+import { type ContentIdea } from '../types/viralAgent';
+import { type BlogPost } from '../types/blog';
+import { type Settings } from '../types/settings';
 import { initialBlogPosts } from '../data/blogData';
 
 

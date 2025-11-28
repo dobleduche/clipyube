@@ -1,8 +1,14 @@
 // server/workers/thumbnailWorker.ts
 import { Worker } from 'bullmq';
-import { redisConnection, thumbnailQueue } from '../queues';
-import { generateThumbnail } from '../services/thumbnailService';
-import * as db from '../db';
+import { redisConnection, thumbnailQueue, queuesReady } from '../queues.js';
+import { generateThumbnail } from '../services/thumbnailService.js';
+import * as db from '../db/index.js';
+
+if (!queuesReady || !redisConnection || !thumbnailQueue) {
+  console.warn('[ThumbnailWorker] Skipping initialization because Redis queues are not ready.');
+} else {
+  const redisConnectionInstance = redisConnection;
+  const thumbnailQueueInstance = thumbnailQueue;
 
 interface ThumbnailJobData {
   draftId: string;
@@ -10,7 +16,7 @@ interface ThumbnailJobData {
 
 console.log(`[${new Date().toISOString()}] Starting Thumbnail Worker...`);
 
-new Worker<ThumbnailJobData, void, string>(thumbnailQueue.name, async (job) => {
+new Worker<ThumbnailJobData, void, string>(thumbnailQueueInstance.name, async (job) => {
   const { draftId } = job.data;
 
   if (!draftId || typeof draftId !== 'string') {
@@ -27,7 +33,8 @@ new Worker<ThumbnailJobData, void, string>(thumbnailQueue.name, async (job) => {
     throw error;
   }
 }, {
-  connection: redisConnection,
+  connection: redisConnectionInstance,
   concurrency: 2, // Can run a few in parallel as it's API-bound
   // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
 });
+}

@@ -1,6 +1,7 @@
 // server/routes/blog.ts
 import express from 'express';
-import * as db from '../db';
+import * as db from '../db/index.js';
+import { type BlogPost } from '../../types/blog.js';
 
 export const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/', (_req, res) => {
     try {
         // The posts are stored newest first, so we reverse for chronological display if needed,
         // but for now, returning as-is is fine (newest first).
-        const posts = db.getTable('blogPosts');
+        const posts = db.getTable('blogPosts') as BlogPost[];
         res.json(posts);
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });
@@ -34,7 +35,7 @@ router.delete('/:slug', (req, res) => {
         const initialLength = posts.length;
         
         // Filter out the post to be deleted
-        const updatedPosts = posts.filter(p => p.slug !== slug);
+        const updatedPosts = posts.filter((p: BlogPost) => p.slug !== slug);
 
         if (updatedPosts.length === initialLength) {
             return res.status(404).json({ error: 'Blog post not found.' });

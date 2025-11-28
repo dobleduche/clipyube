@@ -2,9 +2,9 @@
 // server/db/index.ts
 // Simple in-memory database for demonstration purposes.
 
-import { Settings } from '../../context/SettingsContext';
-import { BlogPost } from '../../pages/BlogPage';
-import { initialBlogPosts } from '../../data/blogData';
+import { type Settings } from '../../types/settings.js';
+import { type BlogPost } from '../../types/blog.js';
+import { initialBlogPosts } from '../../data/blogData.js';
 
 // Default settings that can be overridden by user
 const defaultSettings: Settings = {

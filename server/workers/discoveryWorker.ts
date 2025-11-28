@@ -1,8 +1,15 @@
 // server/workers/discoveryWorker.ts
 import { Worker } from 'bullmq';
-import { redisConnection, discoveryQueue, generationQueue } from '../queues';
-import { runDiscovery } from '../services/discovery';
-import * as db from '../db';
+import { redisConnection, discoveryQueue, generationQueue, queuesReady } from '../queues.js';
+import { runDiscovery } from '../services/discovery.js';
+import * as db from '../db/index.js';
+
+if (!queuesReady || !redisConnection || !discoveryQueue || !generationQueue) {
+  console.warn('[DiscoveryWorker] Skipping initialization because Redis queues are not ready.');
+} else {
+  const discoveryQueueInstance = discoveryQueue;
+  const generationQueueInstance = generationQueue;
+  const redisConnectionInstance = redisConnection;
 
 interface DiscoveryJobData {
   niche?: string;
@@ -20,7 +27,7 @@ interface DiscoveryResult {
 
 console.log(`[${new Date().toISOString()}] Starting Discovery Worker...`);
 
-new Worker<DiscoveryJobData, void, string>(discoveryQueue.name, async (job) => {
+new Worker<DiscoveryJobData, void, string>(discoveryQueueInstance.name, async (job) => {
   const { niche: jobNiche, platforms: jobPlatforms, geo: jobGeo } = job.data;
 
   // Validate and fetch settings
@@ -45,7 +52,7 @@ new Worker<DiscoveryJobData, void, string>(discoveryQueue.name, async (job) => {
     const newDiscoveries = await runDiscovery(niche, platforms, geo) as DiscoveryResult[];
 
     if (newDiscoveries.length > 0) {
-      await generationQueue.add('generate-drafts', {});
+      await generationQueueInstance.add('generate-drafts', {});
       db.addAutomationLog(`[${new Date().toISOString()}] Found ${newDiscoveries.length} new items for job ${job.id}, enqueued generation job.`);
     } else {
       db.addAutomationLog(`[${new Date().toISOString()}] No new discoveries found in job ${job.id}.`);
@@ -56,6 +63,7 @@ new Worker<DiscoveryJobData, void, string>(discoveryQueue.name, async (job) => {
     throw error; // Let BullMQ handle retries
   }
 }, {
-  connection: redisConnection,
+  connection: redisConnectionInstance,
   // FIX: Removed invalid 'settings' property. Retry logic is handled by defaultJobOptions on the queue.
 });
+}

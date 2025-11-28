@@ -1,11 +1,11 @@
 
 import express from 'express';
-import * as llm from '../adapters/llm';
-import * as analysisService from '../services/analysisService';
-import { sanitizeHtml } from '../../utils/sanitize';
-import * as db from '../db';
-import { BlogPost } from '../../pages/BlogPage';
-import { ContentIdea } from '../../services/viralAgentService';
+import * as llm from '../adapters/llm.js';
+import * as analysisService from '../services/analysisService.js';
+import { sanitizeHtml } from '../../utils/sanitize.js';
+import * as db from '../db/index.js';
+import { type BlogPost } from '../../types/blog.js';
+import { type ContentIdea } from '../../types/viralAgent.js';
 
 export const router = express.Router();
 

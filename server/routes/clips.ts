@@ -2,7 +2,7 @@
 import express from "express";
 import { Redis } from "ioredis";
 import { Queue } from "bullmq";
-import { redisConnection, automationQueue as automationQ, queuesReady } from "../queues";
+import { redisConnection, automationQueue as automationQ, queuesReady } from "../queues.js";
 
 export const router = express.Router();
 
@@ -10,7 +10,7 @@ const CHANNEL = "clipyube:events";
 const INBOX = (t: string = "default") => `clipyube:${t}:inbox`;
 
 // Reuse a single Redis client
-const r: Redis = redisConnection;
+const r: Redis | undefined = redisConnection;
 
 /**
  * POST /api/clips/ingest

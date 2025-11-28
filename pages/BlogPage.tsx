@@ -6,16 +6,7 @@ import ShareComponent from '../components/ShareComponent';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateYouTubeDescriptionRequest } from '../api/client';
 import Loader from '../components/Loader';
-
-export type BlogPost = {
-    slug: string;
-    title: string;
-    author: string;
-    date: string;
-    image: string;
-    snippet: string;
-    content: string; // HTML content
-};
+import { type BlogPost } from '../types/blog';
 
 interface BlogPageProps {
     posts: BlogPost[];

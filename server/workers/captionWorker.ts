@@ -1,6 +1,6 @@
 // server/workers/captionWorker.ts
 import { Worker } from "bullmq";
-import { redisConnection as connection, captionQueue } from '../queues';
+import { redisConnection as connection, captionQueue, queuesReady } from '../queues.js';
 import OpenAI from "openai";
 // FIX: Import createWriteStream and createReadStream from `fs`, not `fs/promises`.
 import { createReadStream, createWriteStream } from "node:fs";
@@ -24,6 +24,11 @@ const getOpenAiClient = (): OpenAI => {
   throw new Error("OpenAI API client is not initialized for the caption worker. Please ensure OPENAI_API_KEY is set.");
 };
 
+if (!queuesReady || !connection || !captionQueue) {
+  console.warn('[CaptionWorker] Skipping initialization because Redis queues are not ready.');
+} else {
+  const captionQueueInstance = captionQueue;
+
 interface JobData {
   tenant: string;
   id: string;
@@ -34,9 +39,9 @@ function log(tenant: string, type: "info" | "success" | "error", message: string
   console.log(`[CAPTION_WORKER:${tenant}] [${new Date().toISOString()}] [${type}] ${message}`);
 }
 
-console.log(`[${new Date().toISOString()}] Starting Caption Worker...`);
+  console.log(`[${new Date().toISOString()}] Starting Caption Worker...`);
 
-new Worker<JobData, void, string>(captionQueue.name, async (job) => {
+  new Worker<JobData, void, string>(captionQueueInstance.name, async (job) => {
   const { tenant, id, src } = job.data;
   log(tenant, "info", `Captioning start for job ${job.id}`);
 
@@ -94,8 +99,9 @@ new Worker<JobData, void, string>(captionQueue.name, async (job) => {
       log(tenant, "error", `Failed to clean up temp file ${tempFilePath}: ${e instanceof Error ? e.message : e}`);
     }
   }
-}, {
-  connection,
-  concurrency: 2,
-  // Retry logic is handled by defaultJobOptions on the queue.
-});
+  }, {
+    connection,
+    concurrency: 2,
+    // Retry logic is handled by defaultJobOptions on the queue.
+  });
+}

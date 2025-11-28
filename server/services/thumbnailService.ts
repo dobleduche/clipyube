@@ -1,8 +1,8 @@
 // server/services/thumbnailService.ts
-import * as db from '../db';
+import * as db from '../db/index.js';
 // FIX: Import addAutomationLog to make it available in this module.
-import { addAutomationLog } from '../db';
-import * as llm from '../adapters/llm';
+import { addAutomationLog } from '../db/index.js';
+import * as llm from '../adapters/llm.js';
 
 /**
  * Generates a thumbnail for a given draft.

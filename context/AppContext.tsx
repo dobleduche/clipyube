@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { BlogPost } from '../pages/BlogPage';
-import { ContentIdea } from '../services/viralAgentService';
+import { type BlogPost } from '../types/blog';
+import { type ContentIdea } from '../types/viralAgent';
 import { generateBlogPostRequest, getBlogPostsRequest, deleteBlogPostRequest } from '../api/client';
 
 type AutomationCommand = {

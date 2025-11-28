@@ -2,32 +2,38 @@
 // FIX: Changed JobOptions to JobsOptions
 import { Queue, JobsOptions, QueueOptions } from 'bullmq';
 import IORedis from 'ioredis';
+import type { Redis as RedisType } from 'ioredis';
 
 // --- Fault-Tolerant Initialization ---
 // Export queue variables, which will be undefined if initialization fails.
-export let discoveryQueue: Queue;
-export let generationQueue: Queue;
-export let thumbnailQueue: Queue;
-export let renderQueue: Queue;
-export let publishQueue: Queue;
-export let automationQueue: Queue;
-export let transcodeQueue: Queue;
-export let captionQueue: Queue;
-export let redisConnection: IORedis;
+export let discoveryQueue: Queue | undefined;
+export let generationQueue: Queue | undefined;
+export let thumbnailQueue: Queue | undefined;
+export let renderQueue: Queue | undefined;
+export let publishQueue: Queue | undefined;
+export let automationQueue: Queue | undefined;
+export let transcodeQueue: Queue | undefined;
+export let captionQueue: Queue | undefined;
+export let redisConnection: RedisType | undefined;
 
 // This flag indicates if the queues are operational.
 export let queuesReady = false;
 
 // FIX: Moved defaultQueueOptions outside the try block so it's accessible to other functions.
-let defaultQueueOptions: QueueOptions;
+let defaultQueueOptions: QueueOptions | undefined;
 
 try {
   // Configure Redis connection
-  redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  const RedisConstructor = IORedis as unknown as { new (url: string, opts: IORedis.RedisOptions): RedisType };
+  redisConnection = new RedisConstructor(process.env.REDIS_URL || 'redis://localhost:6379', {
     maxRetriesPerRequest: null, // Important for BullMQ
   });
 
-  redisConnection.on('error', (err) => {
+  if (!redisConnection) {
+    throw new Error('[Queues] Failed to initialize Redis connection.');
+  }
+
+  redisConnection.on('error', (err: Error) => {
     if (queuesReady) { // If it was connected before
         console.error('[Queues] Redis connection lost. Queuing will be paused.', err.message);
     }
@@ -43,7 +49,7 @@ try {
 
   // Assign inside try block after connection is established
   defaultQueueOptions = {
-    connection: redisConnection,
+    connection: redisConnection as QueueOptions['connection'],
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },

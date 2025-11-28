@@ -17,6 +17,7 @@
     "server/**/*.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
+    "types/**/*.ts",
     "installHook.js"
   ],
   "exclude": [
