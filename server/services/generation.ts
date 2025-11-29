@@ -1,8 +1,8 @@
 // server/services/generation.ts
-import * as db from '../db';
+import * as db from '../db/index.js';
 // FIX: Import addAutomationLog to make it available in this module.
-import { addAutomationLog } from '../db';
-import * as llm from '../adapters/llm';
+import { addAutomationLog } from '../db/index.js';
+import * as llm from '../adapters/llm.js';
 
 /**
  * A service to build drafts from new discoveries.

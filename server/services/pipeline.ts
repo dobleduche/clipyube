@@ -1,8 +1,8 @@
 // server/services/pipeline.ts
-import * as db from '../db';
-import * as youtubeAdapter from '../adapters/youtube';
-import * as ttsAdapter from '../adapters/tts';
-import * as videoAdapter from '../adapters/video';
+import * as db from '../db/index.js';
+import * as youtubeAdapter from '../adapters/youtube.js';
+import * as ttsAdapter from '../adapters/tts.js';
+import * as videoAdapter from '../adapters/video.js';
 
 // Define interfaces for type safety
 interface Draft {

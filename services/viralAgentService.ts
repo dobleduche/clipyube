@@ -1,12 +1,5 @@
 import { runViralAgentRequest } from '../api/client';
-
-export type ContentIdea = {
-    id: string;
-    source: string;
-    title: string;
-    brief: string;
-    keywords: string[];
-};
+import { type ContentIdea } from '../types/viralAgent';
 
 /**
  * Calls the backend to enqueue a viral content discovery job.

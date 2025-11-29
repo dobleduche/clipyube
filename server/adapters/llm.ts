@@ -97,7 +97,13 @@ export const generateTextContent = async (prompt: string, retries = 1): Promise<
                 model: proModel,
                 contents: prompt,
             });
-            return response.text.trim();
+
+            const text = response.text?.trim();
+            if (text) {
+                return text;
+            }
+
+            throw new Error('Gemini API did not return any text content.');
         } catch (error) {
             console.error(`Error in LLM adapter for text generation (attempt ${i + 1}):`, error);
             lastError = error instanceof Error ? error : new Error('Unknown API error');
@@ -129,7 +135,15 @@ export const generateImages = async (prompt: string, numberOfImages: number = 4)
       throw new Error('Imagen API did not return any images.');
     }
 
-    return response.generatedImages.map(img => img.image.imageBytes);
+    const images = response.generatedImages
+      ?.map((img) => img.image?.imageBytes)
+      .filter((bytes): bytes is string => Boolean(bytes));
+
+    if (!images || images.length === 0) {
+      throw new Error('Imagen API did not include image bytes in the response.');
+    }
+
+    return images;
   } catch (error) {
     console.error(`Error in LLM adapter for image generation:`, error);
     if (error instanceof Error) {

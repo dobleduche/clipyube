@@ -1,6 +1,6 @@
 // server/routes/discovery.ts
 import express from 'express';
-import { discoveryQueue, queuesReady } from '../queues';
+import { discoveryQueue, queuesReady } from '../queues.js';
 
 export const router = express.Router();
 

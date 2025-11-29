@@ -1,6 +1,7 @@
 // src/pages/ViralAgentPage.tsx
 import React, { useState, useEffect } from "react";
-import { runViralAgent, ContentIdea } from "../services/viralAgentService";
+import { runViralAgent } from "../services/viralAgentService";
+import { type ContentIdea } from "../types/viralAgent";
 import {
   MagicWandIcon,
   TrendingUpIcon,

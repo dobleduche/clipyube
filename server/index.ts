@@ -3,12 +3,12 @@ import express, { Request, Response as ExpressResponse, NextFunction } from "exp
 import cors from "cors";
 
 // Router Imports
-import { router as generate } from "./routes/generate.ts";
-import { router as discovery } from "./routes/discovery.ts";
-import { router as publish } from "./routes/publish.ts";
-import { router as clips } from "./routes/clips.ts";
-import { router as automation } from "./routes/automation.ts";
-import { router as blog } from "./routes/blog.ts";
+import { router as generate } from "./routes/generate.js";
+import { router as discovery } from "./routes/discovery.js";
+import { router as publish } from "./routes/publish.js";
+import { router as clips } from "./routes/clips.js";
+import { router as automation } from "./routes/automation.js";
+import { router as blog } from "./routes/blog.js";
 
 /**
  * Dynamically imports and initializes all BullMQ workers.
@@ -16,13 +16,13 @@ import { router as blog } from "./routes/blog.ts";
  */
 const bootWorkers = () => {
   const workerPaths = [
-    "./workers/automationWorker.ts",
-    "./workers/captionWorker.ts",
-    "./workers/discoveryWorker.ts",
-    "./workers/generationWorker.ts",
-    "./workers/pipelineWorker.ts",
-    "./workers/transcodeWorker.ts",
-    "./workers/thumbnailWorker.ts",
+    "./workers/automationWorker.js",
+    "./workers/captionWorker.js",
+    "./workers/discoveryWorker.js",
+    "./workers/generationWorker.js",
+    "./workers/pipelineWorker.js",
+    "./workers/transcodeWorker.js",
+    "./workers/thumbnailWorker.js",
   ];
 
   workerPaths.forEach(async (workerPath) => {

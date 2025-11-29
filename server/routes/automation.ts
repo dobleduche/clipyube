@@ -1,7 +1,7 @@
 // server/routes/automation.ts
 import express from 'express';
-import * as db from '../db';
-import { discoveryQueue, scheduleAutomation, removeAutomationSchedule, queuesReady } from '../queues';
+import * as db from '../db/index.js';
+import { discoveryQueue, scheduleAutomation, removeAutomationSchedule, queuesReady } from '../queues.js';
 
 export const router = express.Router();
 
@@ -40,6 +40,11 @@ router.post('/start', async (_req, res) => {
     }
 
     // Trigger an immediate run without waiting for the schedule
+    if (!discoveryQueue) {
+        db.addAutomationLog('Discovery queue is not initialized.', 'error');
+        return res.status(503).json({ error: 'Discovery queue is not initialized.' });
+    }
+
     await discoveryQueue.add('on-demand-discovery', {});
 
     res.json({ message: 'Automation started.' });

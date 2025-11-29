@@ -1,7 +1,7 @@
 // server/services/discovery.ts
-import { getTrendingTopics, TrendData } from '../adapters/trends';
-import * as db from '../db';
-import { addAutomationLog } from '../db';
+import { getTrendingTopics, type TrendData } from '../adapters/trends.js';
+import * as db from '../db/index.js';
+import { addAutomationLog } from '../db/index.js';
 
 /**
  * Calculates a score for a trend to prioritize it.
