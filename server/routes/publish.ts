@@ -6,7 +6,7 @@ export const router = express.Router();
 // POST /api/publish/youtube
 router.post('/youtube', (req, res) => {
     const { draftId, title, description } = req.body;
-    console.log(`Received request to publish draft ${draftId} to YouTube with title: ${title}`);
+    console.log(`Received request to publish draft ${draftId} to YouTube with title: ${title}, description: ${description}`);
     
     // TODO: Implement actual YouTube upload logic in an adapter
     
@@ -19,7 +19,7 @@ router.post('/youtube', (req, res) => {
 // POST /api/publish/cms
 router.post('/cms', (req, res) => {
     const { draftId, content } = req.body;
-    console.log(`Received request to publish draft ${draftId} to CMS.`);
+    console.log(`Received request to publish draft ${draftId} to CMS with content length: ${content?.length ?? 0}`);
     
     // TODO: Implement actual CMS publishing logic
     
